@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import HeaderBanner from "./components/HeaderBanner";
+import HorizontalMenu from "./components/HorizontalMenu";
+import MainBody from "./components/MainBody";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 
@@ -41,54 +44,22 @@ function useBooks() {
 }
 
 export default function App() {
+  const [activeSection, setActiveSection] = useState("books");
   const { books, loading, error } = useBooks();
 
   return (
-    <main className="page">
-      <header className="hero">
-        <div>
-          <p className="eyebrow">Bikepacking API</p>
-          <h1>Books</h1>
-          <p className="subhead">
-            Data served from the FastAPI backend via /api/v1/books.
-          </p>
-        </div>
-      </header>
-
-      <section className="card">
-        <div className="card-header">
-          <h2>Books</h2>
-          {loading && <span className="pill">Loading</span>}
-          {error && <span className="pill pill-error">Error</span>}
-        </div>
-
-        {error ? (
-          <p className="error">Failed to load: {error}</p>
-        ) : books.length === 0 && !loading ? (
-          <p className="muted">No books found.</p>
-        ) : (
-          <ul className="list">
-            {books.map((book) => (
-              <li key={book.id} className="list-item">
-                <div>
-                  <div className="title">{book.title}</div>
-                  <div className="meta">
-                    <span>{book.author}</span>
-                    {book.published_at && (
-                      <>
-                        <span className="dot" aria-hidden="true">
-                          •
-                        </span>
-                        <span>{book.published_at}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </main>
+    <div className="min-h-screen bg-slate-50">
+      <HeaderBanner />
+      <HorizontalMenu
+        activeSection={activeSection}
+        onSectionChange={setActiveSection}
+      />
+      <MainBody
+        activeSection={activeSection}
+        books={books}
+        loading={loading}
+        error={error}
+      />
+    </div>
   );
 }
