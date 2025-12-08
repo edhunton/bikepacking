@@ -14,6 +14,8 @@ class Book(BaseModel):
     title: str
     author: str
     published_at: date | None = None
+    isbn: str | None = None
+    cover_url: str | None = None
 
 
 @router.get("/health")
@@ -25,7 +27,7 @@ def health_check() -> dict[str, str]:
 @router.get("/", response_model=List[Book])
 def get_books() -> list[Book]:
     query = """
-        SELECT id, title, author, published_at
+        SELECT id, title, author, published_at, isbn, cover_url
         FROM books
         ORDER BY id;
     """
@@ -43,6 +45,8 @@ def get_books() -> list[Book]:
             title=row[1],
             author=row[2],
             published_at=row[3],
+            isbn=row[4] if len(row) > 4 else None,
+            cover_url=row[5] if len(row) > 5 else None,
         )
         for row in rows
     ]
