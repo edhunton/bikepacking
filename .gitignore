@@ -1,0 +1,14 @@
+frontend/node_modules
+frontend/dist
+frontend/.vite
+
+backend/.venv
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/**/*.pyo
+backend/**/*.pyd
+
+# IDE
+.DS_Store
+.vscode/
+.idea/
