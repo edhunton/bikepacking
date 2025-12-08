@@ -1,8 +1,8 @@
-import Books from "./Books";
-import Routes from "./Routes";
-import Tours from "./Tours";
-import BlogPosts from "./BlogPosts";
-import Recipes from "./Recipes";
+import Books from "./books";
+import Routes from "./routes";
+import Tours from "./tours";
+import BlogPosts from "./blog-posts";
+import Recipes from "./recipes";
 
 export default function MainBody({ activeSection, books, loading, error }) {
   const renderSection = () => {
