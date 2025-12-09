@@ -12,3 +12,10 @@ backend/**/*.pyd
 .DS_Store
 .vscode/
 .idea/
+
+# Environment variables
+frontend/.env
+backend/.env
+.env
+.env.local
+.env.*.local
