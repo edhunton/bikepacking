@@ -5,6 +5,7 @@ import uvicorn
 from fastapi import FastAPI
 
 from api.v1.books.router import router as books_router
+from api.v1.blog_posts.router import router as blog_posts_router
 
 # Use uvicorn's logger so messages appear with the server output.
 logger = logging.getLogger("uvicorn.error")
@@ -23,6 +24,7 @@ app = FastAPI(lifespan=lifespan)
 
 # Mount versioned routers
 app.include_router(books_router, prefix="/api/v1/books")
+app.include_router(blog_posts_router, prefix="/api/v1/blog_posts")
 
 
 if __name__ == "__main__":
