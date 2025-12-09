@@ -2,6 +2,7 @@ import Books from "./books";
 import Routes from "./routes";
 import Tours from "./tours";
 import BlogPosts from "./blog-posts";
+import StravaActivities from "./strava";
 import Recipes from "./recipes";
 
 export default function MainBody({ activeSection, books, loading, error }) {
@@ -15,6 +16,8 @@ export default function MainBody({ activeSection, books, loading, error }) {
         return <Tours />;
       case "blog-posts":
         return <BlogPosts />;
+      case "strava":
+        return <StravaActivities />;
       case "recipes":
         return <Recipes />;
       default:

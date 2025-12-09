@@ -4,6 +4,7 @@ export default function HorizontalMenu({ activeSection, onSectionChange }) {
     { id: "routes", label: "Routes" },
     { id: "tours", label: "Tours" },
     { id: "blog-posts", label: "Blog Posts" },
+    { id: "strava", label: "Strava" },
     { id: "recipes", label: "Recipes" },
   ];
 
