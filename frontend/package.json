@@ -4,9 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "npm run generate-banners && vite",
+    "build": "npm run generate-banners && vite build",
+    "preview": "vite preview",
+    "generate-banners": "node scripts/generate-banner-manifest.js"
   },
   "dependencies": {
     "react": "^18.2.0",
