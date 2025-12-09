@@ -21,7 +21,7 @@ export default function Book({ book }) {
       {/* Thumbnail - 640x432 aspect ratio (1.48:1) */}
       <div className="flex-shrink-0">
         <img
-          src={imageUrl}
+          src={`/images/books/${imageUrl}`}
           alt={`Cover of ${title}`}
           className="w-40 aspect-[432/640] object-cover rounded border border-slate-200"
           onError={(e) => {
