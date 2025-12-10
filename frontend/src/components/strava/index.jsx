@@ -445,8 +445,38 @@ export default function StravaActivities() {
                       // Get Mapbox token from environment variable
                       // Set VITE_MAPBOX_ACCESS_TOKEN in your .env file
                       // Get a free token at https://account.mapbox.com/
-                      const mapboxToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || 
-                        'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw';
+                      const mapboxToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+                      if (!mapboxToken) {
+                        console.warn('VITE_MAPBOX_ACCESS_TOKEN not set - map thumbnails will not work');
+                        // Return placeholder instead of broken image
+                        return (
+                          <div className="flex-shrink-0">
+                            <a
+                              href={getActivityUrl(activity.id)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block rounded-lg w-48 h-32 bg-slate-100 border border-slate-200 flex items-center justify-center hover:bg-slate-200 transition-colors"
+                            >
+                              <div className="text-center">
+                                <svg
+                                  className="w-8 h-8 mx-auto mb-1 text-slate-400"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+                                  />
+                                </svg>
+                                <span className="text-xs text-slate-600">View Map</span>
+                              </div>
+                            </a>
+                          </div>
+                        );
+                      }
                       const mapUrl = `https://api.mapbox.com/styles/v1/mapbox/outdoors-v11/static/path-3+ff0000-0.6(${encodedPolyline})/auto/200x150?access_token=${mapboxToken}`;
                       
                       return (
