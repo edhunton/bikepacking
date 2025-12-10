@@ -3,3 +3,6 @@ uvicorn
 psycopg[binary]
 feedparser
 requests
+komPYoot
+pymoot
+python-dotenv
