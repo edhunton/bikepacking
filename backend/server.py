@@ -1,5 +1,13 @@
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# Load environment variables from .env file BEFORE importing routers
+# This ensures env vars are available when routers are imported
+env_path = Path(__file__).parent / ".env"
+load_dotenv(dotenv_path=env_path)
 
 import uvicorn
 from fastapi import FastAPI
@@ -7,6 +15,7 @@ from fastapi import FastAPI
 from api.v1.books.router import router as books_router
 from api.v1.blog_posts.router import router as blog_posts_router
 from api.v1.strava.router import router as strava_router
+from api.v1.komoot.router import router as komoot_router
 
 # Use uvicorn's logger so messages appear with the server output.
 logger = logging.getLogger("uvicorn.error")
@@ -27,6 +36,7 @@ app = FastAPI(lifespan=lifespan)
 app.include_router(books_router, prefix="/api/v1/books")
 app.include_router(blog_posts_router, prefix="/api/v1/blog_posts")
 app.include_router(strava_router, prefix="/api/v1/strava")
+app.include_router(komoot_router, prefix="/api/v1/komoot")
 
 
 if __name__ == "__main__":
