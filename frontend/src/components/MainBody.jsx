@@ -4,6 +4,7 @@ import Tours from "./tours";
 import BlogPosts from "./blog-posts";
 import StravaActivities from "./strava";
 import Recipes from "./recipes";
+import Komoot from "./komoot";
 
 export default function MainBody({ activeSection, books, loading, error }) {
   const renderSection = () => {
@@ -18,6 +19,8 @@ export default function MainBody({ activeSection, books, loading, error }) {
         return <BlogPosts />;
       case "strava":
         return <StravaActivities />;
+      case "komoot":
+        return <Komoot />;
       case "recipes":
         return <Recipes />;
       default:
