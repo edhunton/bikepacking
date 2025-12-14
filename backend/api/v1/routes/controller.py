@@ -13,6 +13,7 @@ def get_all_routes(
     country: Optional[str] = None,
     county: Optional[str] = None,
     difficulty: Optional[str] = None,
+    include_deleted: bool = False,
 ) -> List[Route]:
     """
     Retrieve all routes from the database with optional filtering.
@@ -22,6 +23,7 @@ def get_all_routes(
         country: Filter by country
         county: Filter by county
         difficulty: Filter by difficulty
+        include_deleted: If True, include routes where live = False
         
     Returns:
         List of Route objects
@@ -37,6 +39,10 @@ def get_all_routes(
         WHERE 1=1
     """
     params = []
+    
+    # Filter by live status (only show live routes by default)
+    if not include_deleted:
+        query += " AND live = TRUE"
     
     if guidebook_id is not None:
         query += " AND guidebook_id = %s"
@@ -87,12 +93,13 @@ def get_all_routes(
     ]
 
 
-def get_route_by_id(route_id: int) -> Route:
+def get_route_by_id(route_id: int, include_deleted: bool = True) -> Route:
     """
     Retrieve a single route by ID.
     
     Args:
         route_id: The route ID
+        include_deleted: If True, can retrieve routes where live = False
         
     Returns:
         Route object
@@ -105,13 +112,19 @@ def get_route_by_id(route_id: int) -> Route:
                ascent, descent, starting_station, ending_station, getting_there,
                bike_choice, guidebook_id, created_at, updated_at
         FROM routes
-        WHERE id = %s;
+        WHERE id = %s
     """
+    params = [route_id]
+    
+    if not include_deleted:
+        query += " AND live = TRUE"
+    
+    query += ";"
     
     with get_connection() as conn:
         try:
             with conn.cursor() as cur:
-                cur.execute(query, (route_id,))
+                cur.execute(query, tuple(params))
                 row = cur.fetchone()
                 
                 if not row:
@@ -264,8 +277,8 @@ def update_route(route_id: int, route_data: UpdateRoute) -> Route:
     Raises:
         HTTPException: If route not found or database update fails
     """
-    # First check if route exists
-    existing_route = get_route_by_id(route_id)
+    # First check if route exists (including deleted routes)
+    existing_route = get_route_by_id(route_id, include_deleted=True)
     
     # Build dynamic UPDATE query based on provided fields
     updates = []
@@ -310,6 +323,9 @@ def update_route(route_id: int, route_data: UpdateRoute) -> Route:
     if route_data.guidebook_id is not None:
         updates.append("guidebook_id = %s")
         params.append(route_data.guidebook_id)
+    if route_data.live is not None:
+        updates.append("live = %s")
+        params.append(route_data.live)
     
     if not updates:
         # No fields to update, return existing route
@@ -357,3 +373,69 @@ def update_route(route_id: int, route_data: UpdateRoute) -> Route:
         created_at=row[14].isoformat() if row[14] else None,
         updated_at=row[15].isoformat() if row[15] else None,
     )
+
+
+def delete_route(route_id: int) -> dict:
+    """
+    Soft delete a route by setting live = False.
+    The route remains in the database but is hidden from normal queries.
+    Can be reinstated by manually setting live = TRUE in the database.
+    
+    Args:
+        route_id: The route ID to delete
+        
+    Returns:
+        Dictionary with success message
+        
+    Raises:
+        HTTPException: If route not found or database update fails
+    """
+    # First check if route exists (including deleted routes)
+    existing_route = get_route_by_id(route_id, include_deleted=True)
+    
+    # Check if already deleted
+    query_check = "SELECT live FROM routes WHERE id = %s;"
+    with get_connection() as conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute(query_check, (route_id,))
+                row = cur.fetchone()
+                if not row:
+                    raise HTTPException(status_code=404, detail="Route not found")
+                if not row[0]:  # live is False
+                    return {
+                        "message": f"Route '{existing_route.title}' is already deleted",
+                        "deleted_id": route_id,
+                        "already_deleted": True
+                    }
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Error checking route status: {str(exc)}") from exc
+    
+    # Soft delete the route
+    query = """
+        UPDATE routes 
+        SET live = FALSE, updated_at = CURRENT_TIMESTAMP
+        WHERE id = %s
+        RETURNING id;
+    """
+    
+    with get_connection() as conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute(query, (route_id,))
+                row = cur.fetchone()
+                if not row:
+                    raise HTTPException(status_code=404, detail="Route not found")
+                conn.commit()
+        except HTTPException:
+            raise
+        except Exception as exc:
+            conn.rollback()
+            raise HTTPException(status_code=500, detail=f"Error deleting route: {str(exc)}") from exc
+
+    return {
+        "message": f"Route '{existing_route.title}' deleted successfully (can be reinstated by setting live = TRUE in database)",
+        "deleted_id": route_id
+    }

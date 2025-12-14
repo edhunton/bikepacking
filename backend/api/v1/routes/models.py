@@ -51,3 +51,4 @@ class UpdateRoute(BaseModel):
     getting_there: Optional[str] = None
     bike_choice: Optional[str] = None
     guidebook_id: Optional[int] = None
+    live: Optional[bool] = None  # Allow toggling live status
