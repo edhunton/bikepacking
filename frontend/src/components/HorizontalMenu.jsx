@@ -6,6 +6,7 @@ export default function HorizontalMenu({ activeSection, onSectionChange }) {
     { id: "blog-posts", label: "Blog Posts" },
     { id: "strava", label: "Strava" },
     { id: "komoot", label: "Komoot" },
+    { id: "instagram", label: "Instagram" },
     { id: "recipes", label: "Recipes" },
   ];
 

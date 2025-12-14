@@ -5,6 +5,7 @@ import BlogPosts from "./blog-posts";
 import StravaActivities from "./strava";
 import Recipes from "./recipes";
 import Komoot from "./komoot";
+import Instagram from "./instagram";
 
 export default function MainBody({ activeSection, books, loading, error }) {
   const renderSection = () => {
@@ -21,6 +22,8 @@ export default function MainBody({ activeSection, books, loading, error }) {
         return <StravaActivities />;
       case "komoot":
         return <Komoot />;
+      case "instagram":
+        return <Instagram />;
       case "recipes":
         return <Recipes />;
       default:
