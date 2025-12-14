@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import RouteMap from "./RouteMap";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 
@@ -643,28 +644,29 @@ export default function Routes() {
                 key={route.id}
                 className="border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow"
               >
-                <div className="flex items-start justify-between">
+                <div className="flex items-start justify-between mb-2">
+                  <h4 className="text-lg font-semibold text-slate-900">
+                    {route.title}
+                  </h4>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEdit(route)}
+                      className="px-3 py-1.5 text-sm bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(route.id, route.title)}
+                      disabled={loading}
+                      className="px-3 py-1.5 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="flex gap-4 items-start">
                   <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-lg font-semibold text-slate-900">
-                        {route.title}
-                      </h4>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleEdit(route)}
-                          className="px-3 py-1.5 text-sm bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(route.id, route.title)}
-                          disabled={loading}
-                          className="px-3 py-1.5 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-slate-600">
                       {route.difficulty && (
                         <div>
@@ -726,6 +728,13 @@ export default function Routes() {
                       </div>
                     )}
                   </div>
+                  
+                  {/* Route Map - Inline */}
+                  {route.gpx_url && (
+                    <div className="flex-shrink-0 w-48">
+                      <RouteMap gpxUrl={route.gpx_url} routeTitle={route.title} />
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

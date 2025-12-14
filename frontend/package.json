@@ -10,6 +10,7 @@
     "generate-banners": "node scripts/generate-banner-manifest.js"
   },
   "dependencies": {
+    "mapbox-gl": "^3.17.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-markdown": "^10.1.0",
