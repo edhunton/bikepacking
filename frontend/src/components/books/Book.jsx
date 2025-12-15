@@ -1,4 +1,13 @@
-export default function Book({ book, onEdit }) {
+export default function Book({
+  book,
+  onEdit,
+  onToggle,
+  isExpanded,
+  photos = [],
+  photosLoading,
+  photosError,
+  onPhotoClick,
+}) {
   const { title, author, published_at, isbn, cover_url, thumbnail, purchase_url } = book;
 
   // Use cover_url, thumbnail, or a placeholder
@@ -18,57 +27,110 @@ export default function Book({ book, onEdit }) {
   };
 
   return (
-    <div className="flex gap-4 p-4 border border-slate-200 rounded-lg bg-white hover:shadow-md transition-shadow">
-      {/* Thumbnail - 640x432 aspect ratio (1.48:1) */}
-      <div className="flex-shrink-0">
-        <img
-          src={`/images/books/${imageUrl}`}
-          alt={`Cover of ${title}`}
-          className="w-40 aspect-[432/640] object-cover rounded border border-slate-200"
-          onError={(e) => {
-            // Fallback to placeholder if image fails to load
-            e.target.src = "/images/book-placeholder.jpg";
-          }}
-        />
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 flex flex-col justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-slate-900 mb-1">
-            {title}
-          </h3>
-          {author && (
-            <p className="text-slate-600 text-sm mb-2">By {author}</p>
-          )}
-          {published_at && (
-            <p className="text-slate-500 text-xs mb-2">
-              Published: {published_at}
-            </p>
-          )}
-          {isbn && (
-            <p className="text-slate-500 text-xs font-mono">ISBN: {isbn}</p>
-          )}
+    <div
+      className="p-4 border border-slate-200 rounded-lg bg-white hover:shadow-md transition-shadow cursor-pointer"
+      onClick={onToggle}
+    >
+      <div className="flex gap-4">
+        {/* Thumbnail - 640x432 aspect ratio (1.48:1) */}
+        <div className="flex-shrink-0">
+          <img
+            src={`/images/books/${imageUrl}`}
+            alt={`Cover of ${title}`}
+            className="w-32 md:w-40 aspect-[432/640] object-cover rounded border border-slate-200"
+            onError={(e) => {
+              // Fallback to placeholder if image fails to load
+              e.target.src = "/images/book-placeholder.jpg";
+            }}
+          />
         </div>
 
-        {/* Buy Button */}
-        <div className="flex gap-2 mt-4">
-          <button
-            onClick={handleBuyClick}
-            className="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors text-sm font-medium"
-          >
-            {purchase_url ? "Buy Now" : "Find Book"}
-          </button>
-          {onEdit && (
+        {/* Content */}
+        <div className="flex-1 flex flex-col justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900 mb-1">
+              {title}
+            </h3>
+            {author && (
+              <p className="text-slate-600 text-sm mb-2">By {author}</p>
+            )}
+            {published_at && (
+              <p className="text-slate-500 text-xs mb-2">
+                Published: {published_at}
+              </p>
+            )}
+            {isbn && (
+              <p className="text-slate-500 text-xs font-mono">ISBN: {isbn}</p>
+            )}
+          </div>
+
+          {/* Buy / Edit Buttons */}
+          <div className="flex gap-2 mt-4">
             <button
-              onClick={() => onEdit(book)}
-              className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors text-sm font-medium"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleBuyClick();
+              }}
+              className="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors text-sm font-medium"
             >
-              Edit
+              {purchase_url ? "Buy Now" : "Find Book"}
             </button>
-          )}
+            {onEdit && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(book);
+                }}
+                className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors text-sm font-medium"
+              >
+                Edit
+              </button>
+            )}
+          </div>
         </div>
       </div>
+
+      {isExpanded && (
+        <div className="mt-4 space-y-2">
+          {photosLoading && (
+            <div className="text-sm text-slate-500">Loading photos...</div>
+          )}
+          {photosError && (
+            <div className="text-sm text-red-600">Error: {photosError}</div>
+          )}
+          {!photosLoading && !photosError && photos.length === 0 && (
+            <div className="text-sm text-slate-500">No photos yet.</div>
+          )}
+          {!photosLoading && photos.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {photos.map((p, index) => (
+                <div key={p.id} className="relative">
+                  <button
+                    type="button"
+                    className="block w-full"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onPhotoClick && onPhotoClick(index);
+                    }}
+                  >
+                    <img
+                      src={p.thumbnail_url || p.photo_url}
+                      alt={p.caption || `Photo ${p.id}`}
+                      className="w-full aspect-square object-cover rounded border border-slate-200"
+                      onError={(e) => (e.target.src = p.photo_url)}
+                    />
+                  </button>
+                  {p.caption && (
+                    <div className="mt-1 text-xs text-slate-600 truncate">
+                      {p.caption}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

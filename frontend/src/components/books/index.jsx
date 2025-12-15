@@ -10,6 +10,10 @@ export default function Books({ books, loading, error }) {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
+  const [expandedId, setExpandedId] = useState(null);
+  const [photosByBook, setPhotosByBook] = useState({});
+  const [photosLoading, setPhotosLoading] = useState(false);
+  const [photosError, setPhotosError] = useState("");
   const [formData, setFormData] = useState({
     title: "",
     author: "",
@@ -24,10 +28,40 @@ export default function Books({ books, loading, error }) {
     files: [],
   });
   const [photoStatus, setPhotoStatus] = useState({ loading: false, error: "", success: "" });
+  const [lightbox, setLightbox] = useState({ open: false, bookId: null, index: 0 });
 
   useEffect(() => {
     setLocalBooks(books);
   }, [books]);
+
+  const fetchPhotos = async (bookId) => {
+    setPhotosLoading(true);
+    setPhotosError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/books/${bookId}/photos`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Failed to load photos: ${res.status}`);
+      }
+      const data = await res.json();
+      setPhotosByBook((prev) => ({ ...prev, [bookId]: data }));
+    } catch (err) {
+      setPhotosError(err.message);
+    } finally {
+      setPhotosLoading(false);
+    }
+  };
+
+  const handleToggleExpand = (bookId) => {
+    if (expandedId === bookId) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(bookId);
+    if (!photosByBook[bookId]) {
+      fetchPhotos(bookId);
+    }
+  };
 
   const handleEdit = (book) => {
     setEditingId(book.id);
@@ -91,6 +125,34 @@ export default function Books({ books, loading, error }) {
     } catch (err) {
       setPhotoStatus({ loading: false, error: err.message, success: "" });
     }
+  };
+
+  const handleOpenLightbox = (bookId, index) => {
+    setLightbox({ open: true, bookId, index });
+  };
+
+  const handleCloseLightbox = () => {
+    setLightbox({ open: false, bookId: null, index: 0 });
+  };
+
+  const handleLightboxNext = () => {
+    if (!lightbox.open || !lightbox.bookId) return;
+    const photos = photosByBook[lightbox.bookId] || [];
+    if (!photos.length) return;
+    setLightbox((prev) => ({
+      ...prev,
+      index: (prev.index + 1) % photos.length,
+    }));
+  };
+
+  const handleLightboxPrev = () => {
+    if (!lightbox.open || !lightbox.bookId) return;
+    const photos = photosByBook[lightbox.bookId] || [];
+    if (!photos.length) return;
+    setLightbox((prev) => ({
+      ...prev,
+      index: (prev.index - 1 + photos.length) % photos.length,
+    }));
   };
 
   const handleInputChange = (e) => {
@@ -363,6 +425,60 @@ export default function Books({ books, loading, error }) {
         </form>
       </div>
 
+      {/* Lightbox overlay */}
+      {lightbox.open && lightbox.bookId && (
+        <div
+          className="fixed inset-0 z-40 bg-black/70 flex items-center justify-center"
+          onClick={handleCloseLightbox}
+        >
+          <div
+            className="relative max-w-3xl w-full mx-4 bg-slate-900 rounded-lg overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {(() => {
+              const photos = photosByBook[lightbox.bookId] || [];
+              const photo = photos[lightbox.index];
+              if (!photo) return null;
+              return (
+                <>
+                  <img
+                    src={photo.photo_url}
+                    alt={photo.caption || "Photo"}
+                    className="w-full max-h-[80vh] object-contain bg-black"
+                  />
+                  {photo.caption && (
+                    <div className="px-4 py-2 text-sm text-slate-100 bg-black/70">
+                      {photo.caption}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+            <button
+              type="button"
+              onClick={handleCloseLightbox}
+              className="absolute top-2 right-2 px-2 py-1 rounded bg-black/70 text-slate-100 text-xs hover:bg-black"
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              onClick={handleLightboxPrev}
+              className="absolute inset-y-0 left-0 px-3 flex items-center justify-center text-slate-100 text-2xl hover:bg-black/30"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              onClick={handleLightboxNext}
+              className="absolute inset-y-0 right-0 px-3 flex items-center justify-center text-slate-100 text-2xl hover:bg-black/30"
+            >
+              ›
+            </button>
+          </div>
+        </div>
+      )}
+
       {error ? (
         <p className="text-red-600 m-0">Failed to load: {error}</p>
       ) : localBooks.length === 0 && !loading ? (
@@ -370,7 +486,17 @@ export default function Books({ books, loading, error }) {
       ) : (
         <div className="flex flex-col gap-4">
           {localBooks.map((book) => (
-            <Book key={book.id} book={book} onEdit={handleEdit} />
+            <Book
+              key={book.id}
+              book={book}
+              onEdit={handleEdit}
+              onToggle={() => handleToggleExpand(book.id)}
+              isExpanded={expandedId === book.id}
+              photos={photosByBook[book.id] || []}
+              photosLoading={photosLoading && expandedId === book.id}
+              photosError={expandedId === book.id ? photosError : ""}
+              onPhotoClick={(index) => handleOpenLightbox(book.id, index)}
+            />
           ))}
         </div>
       )}
