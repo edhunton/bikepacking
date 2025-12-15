@@ -19,3 +19,20 @@ class UpdateBook(BaseModel):
     isbn: str | None = None
     cover_url: str | None = None
     purchase_url: str | None = None
+
+
+class BookPhoto(BaseModel):
+    id: int
+    book_id: int
+    photo_url: str
+    thumbnail_url: str | None = None
+    caption: str | None = None
+    taken_at: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    created_at: str | None = None
+
+
+class CreateBookPhoto(BaseModel):
+    book_id: int
+    caption: str | None = None

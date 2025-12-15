@@ -45,6 +45,7 @@ docker exec -i bikepacking_postgres psql -U postgres -d bikepacking < migrations
 - `add_live_field_to_routes.sql` - Adds `live` boolean field for soft delete functionality (defaults to TRUE)
 - `add_thumbnail_url_to_routes.sql` - Adds `thumbnail_url` field for storing route map thumbnails
 - `add_purchase_url_to_books.sql` - Adds `purchase_url` field for external sales links per book
+- `create_book_photos_table.sql` - Stores multiple photos per book with captions and geo metadata
 - `seed_routes.sql` - Seeds the routes table with 10 dummy routes (3 with guidebook references, 7 standalone)
 - `seed_routes_no_guidebooks.sql` - Seeds the routes table with 10 dummy routes (all standalone, no guidebook references)
 
