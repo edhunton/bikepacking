@@ -102,30 +102,24 @@ export default function Book({
             <div className="text-sm text-slate-500">No photos yet.</div>
           )}
           {!photosLoading && photos.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="flex flex-wrap gap-2">
               {photos.map((p, index) => (
-                <div key={p.id} className="relative">
-                  <button
-                    type="button"
-                    className="block w-full"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onPhotoClick && onPhotoClick(index);
-                    }}
-                  >
-                    <img
-                      src={p.thumbnail_url || p.photo_url}
-                      alt={p.caption || `Photo ${p.id}`}
-                      className="w-full aspect-square object-cover rounded border border-slate-200"
-                      onError={(e) => (e.target.src = p.photo_url)}
-                    />
-                  </button>
-                  {p.caption && (
-                    <div className="mt-1 text-xs text-slate-600 truncate">
-                      {p.caption}
-                    </div>
-                  )}
-                </div>
+                <button
+                  key={p.id}
+                  type="button"
+                  className="relative w-10 h-10 sm:w-12 sm:h-12"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onPhotoClick && onPhotoClick(index);
+                  }}
+                >
+                  <img
+                    src={p.thumbnail_url || p.photo_url}
+                    alt={p.caption || `Photo ${p.id}`}
+                    className="w-full h-full object-cover rounded border border-slate-200"
+                    onError={(e) => (e.target.src = p.photo_url)}
+                  />
+                </button>
               ))}
             </div>
           )}
