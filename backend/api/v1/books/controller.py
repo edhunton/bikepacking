@@ -17,7 +17,7 @@ def get_all_books() -> List[Book]:
         HTTPException: If database query fails
     """
     query = """
-        SELECT id, title, author, published_at, isbn, cover_url
+        SELECT id, title, author, published_at, isbn, cover_url, purchase_url
         FROM books
         ORDER BY id;
     """
@@ -37,6 +37,7 @@ def get_all_books() -> List[Book]:
             published_at=row[3],
             isbn=row[4] if len(row) > 4 else None,
             cover_url=row[5] if len(row) > 5 else None,
+            purchase_url=row[6] if len(row) > 6 else None,
         )
         for row in rows
     ]

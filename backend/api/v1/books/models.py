@@ -9,3 +9,4 @@ class Book(BaseModel):
     published_at: date | None = None
     isbn: str | None = None
     cover_url: str | None = None
+    purchase_url: str | None = None
