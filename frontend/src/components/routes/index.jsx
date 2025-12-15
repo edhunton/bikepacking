@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import RouteMap from "./RouteMap";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
@@ -11,6 +11,7 @@ export default function Routes() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const generatingThumbnails = useRef(new Set()); // Track routes currently generating thumbnails
   const [formData, setFormData] = useState({
     title: "",
     gpx_url: "",
@@ -55,6 +56,33 @@ export default function Routes() {
         }
         const data = await res.json();
         setRoutes(data);
+        
+        // Automatically generate thumbnails for routes that don't have them
+        data.forEach(route => {
+          if (route.gpx_url && !route.thumbnail_url && !generatingThumbnails.current.has(route.id)) {
+            generatingThumbnails.current.add(route.id);
+            // Generate thumbnail silently in the background
+            fetch(`${API_BASE}/api/v1/routes/${route.id}/generate-thumbnail`, {
+              method: 'POST'
+            })
+              .then(() => {
+                // Reload routes to get updated thumbnail
+                return fetch(`${API_BASE}/api/v1/routes/`);
+              })
+              .then(res => res.ok ? res.json() : null)
+              .then(data => {
+                if (data) {
+                  setRoutes(data);
+                }
+                generatingThumbnails.current.delete(route.id);
+              })
+              .catch(err => {
+                console.error("Error generating thumbnail:", err);
+                generatingThumbnails.current.delete(route.id);
+                // Silently fail - user still sees the map
+              });
+          }
+        });
       } catch (err) {
         setError(err.message);
       } finally {
@@ -250,6 +278,23 @@ export default function Routes() {
       }
 
       const updatedRoute = await res.json();
+      
+      // If route has a GPX file, generate thumbnail in the background
+      if (gpxUrl && updatedRoute.id) {
+        // Generate thumbnail asynchronously (don't wait for it)
+        fetch(`${API_BASE}/api/v1/routes/${updatedRoute.id}/generate-thumbnail`, {
+          method: 'POST'
+        }).then(() => {
+          // Reload routes after thumbnail is generated
+          fetch(`${API_BASE}/api/v1/routes/`)
+            .then(res => res.ok ? res.json() : null)
+            .then(data => data && setRoutes(data))
+            .catch(err => console.error("Error reloading routes:", err));
+        }).catch(err => {
+          console.error("Error generating thumbnail:", err);
+          // Don't show error to user, thumbnail generation is optional
+        });
+      }
       
       if (editingRouteId) {
         // Update the route in the list
@@ -729,10 +774,38 @@ export default function Routes() {
                     )}
                   </div>
                   
-                  {/* Route Map - Inline */}
+                  {/* Route Thumbnail/Map - Inline */}
                   {route.gpx_url && (
-                    <div className="flex-shrink-0 w-48">
-                      <RouteMap gpxUrl={route.gpx_url} routeTitle={route.title} />
+                    <div className="flex-shrink-0 w-48 relative">
+                      {route.thumbnail_url ? (
+                        <img
+                          src={route.thumbnail_url.startsWith('http') ? route.thumbnail_url : `${API_BASE}${route.thumbnail_url}`}
+                          alt={`Route map for ${route.title}`}
+                          className="w-full h-32 object-cover rounded-lg border border-slate-200"
+                          onError={async (e) => {
+                            // If thumbnail fails to load, try to regenerate it silently
+                            try {
+                              await fetch(`${API_BASE}/api/v1/routes/${route.id}/generate-thumbnail?force=true`, {
+                                method: 'POST'
+                              });
+                              // Reload routes to get updated thumbnail
+                              const routesRes = await fetch(`${API_BASE}/api/v1/routes/`);
+                              if (routesRes.ok) {
+                                const routesData = await routesRes.json();
+                                setRoutes(routesData);
+                              }
+                            } catch (err) {
+                              console.error("Error generating thumbnail:", err);
+                              // Show fallback map
+                              e.target.style.display = 'none';
+                              const fallback = e.target.nextSibling;
+                              if (fallback) fallback.style.display = 'block';
+                            }
+                          }}
+                        />
+                      ) : (
+                        <RouteMap gpxUrl={route.gpx_url} routeTitle={route.title} />
+                      )}
                     </div>
                   )}
                 </div>
