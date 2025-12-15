@@ -6,6 +6,7 @@ class Route(BaseModel):
     id: int
     title: str
     gpx_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
     difficulty: Optional[str] = None
     country: Optional[str] = None
     county: Optional[str] = None
@@ -40,6 +41,7 @@ class CreateRoute(BaseModel):
 class UpdateRoute(BaseModel):
     title: Optional[str] = None
     gpx_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
     difficulty: Optional[str] = None
     country: Optional[str] = None
     county: Optional[str] = None

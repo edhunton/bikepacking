@@ -6,3 +6,6 @@ requests
 komPYoot
 pymoot
 python-dotenv
+gpxpy
+Pillow
+polyline

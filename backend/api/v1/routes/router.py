@@ -248,3 +248,37 @@ def get_gpx_file(filename: str):
         media_type="application/gpx+xml",
         filename=filename
     )
+
+
+@router.post("/{route_id}/generate-thumbnail")
+def generate_thumbnail(route_id: int, force: bool = False):
+    """
+    Generate a thumbnail for a route from its GPX file.
+    
+    Args:
+        route_id: The route ID
+        force: If True, regenerate even if thumbnail exists
+        
+    Returns:
+        Dictionary with thumbnail URL
+    """
+    from .controller import generate_route_thumbnail
+    
+    try:
+        thumbnail_path = generate_route_thumbnail(route_id, force_regenerate=force)
+        return {
+            "message": "Thumbnail generated successfully",
+            "thumbnail_url": thumbnail_path
+        }
+    except HTTPException as e:
+        # Re-raise with more context
+        print(f"HTTPException for route {route_id}: {e.status_code} - {e.detail}")
+        raise
+    except Exception as exc:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error generating thumbnail for route {route_id}: {error_details}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Error generating thumbnail: {str(exc)}. Check server logs for details."
+        ) from exc
