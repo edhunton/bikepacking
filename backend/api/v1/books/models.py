@@ -10,3 +10,12 @@ class Book(BaseModel):
     isbn: str | None = None
     cover_url: str | None = None
     purchase_url: str | None = None
+
+
+class UpdateBook(BaseModel):
+    title: str | None = None
+    author: str | None = None
+    published_at: date | None = None
+    isbn: str | None = None
+    cover_url: str | None = None
+    purchase_url: str | None = None
