@@ -355,7 +355,7 @@ export default function Routes() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-2xl font-semibold text-slate-900">Routes</h2>
         <button
           onClick={() => {
@@ -366,14 +366,14 @@ export default function Routes() {
               setEditingRouteId(null);
             }
           }}
-          className="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
+          className="w-full sm:w-auto px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
         >
           {showForm ? "Cancel" : "Add New Route"}
         </button>
       </div>
 
       {showForm && (
-        <div className="bg-white rounded-xl p-6 shadow-lg border border-slate-200">
+        <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg border border-slate-200">
           <h3 className="text-xl font-semibold text-slate-900 mb-4">
             {editingRouteId ? "Edit Route" : "Add New Route"}
           </h3>
@@ -391,7 +391,7 @@ export default function Routes() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {/* Title - Required */}
               <div className="md:col-span-2">
                 <label htmlFor="title" className="block text-sm font-medium text-slate-700 mb-1">
@@ -689,7 +689,7 @@ export default function Routes() {
                 key={route.id}
                 className="border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow"
               >
-                <div className="flex items-start justify-between mb-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between mb-2">
                   <h4 className="text-lg font-semibold text-slate-900">
                     {route.title}
                   </h4>
@@ -710,9 +710,9 @@ export default function Routes() {
                   </div>
                 </div>
                 
-                <div className="flex gap-4 items-start">
+                <div className="flex flex-col md:flex-row gap-4 items-start">
                   <div className="flex-1">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-slate-600">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm text-slate-600">
                       {route.difficulty && (
                         <div>
                           <span className="font-medium">Difficulty:</span> {route.difficulty}
@@ -776,12 +776,12 @@ export default function Routes() {
                   
                   {/* Route Thumbnail/Map - Inline */}
                   {route.gpx_url && (
-                    <div className="flex-shrink-0 w-48 relative">
+                    <div className="flex-shrink-0 w-full md:w-48 relative">
                       {route.thumbnail_url ? (
                         <img
                           src={route.thumbnail_url.startsWith('http') ? route.thumbnail_url : `${API_BASE}${route.thumbnail_url}`}
                           alt={`Route map for ${route.title}`}
-                          className="w-full h-32 object-cover rounded-lg border border-slate-200"
+                          className="w-full h-40 md:h-32 object-cover rounded-lg border border-slate-200"
                           onError={async (e) => {
                             // If thumbnail fails to load, try to regenerate it silently
                             try {
