@@ -1,19 +1,20 @@
-export default function Book({ book }) {
-  const { id, title, author, published_at, isbn, cover_url, thumbnail } = book;
+export default function Book({ book, onEdit }) {
+  const { title, author, published_at, isbn, cover_url, thumbnail, purchase_url } = book;
 
   // Use cover_url, thumbnail, or a placeholder
   const imageUrl = cover_url || thumbnail || "/images/book-placeholder.jpg";
 
   // Handle buy button click
   const handleBuyClick = () => {
-    // You can customize this URL based on your needs
-    if (isbn) {
-      // Search on Amazon or other bookstores using ISBN
-      window.open(`https://www.amazon.com/s?k=${isbn}`, "_blank");
-    } else {
-      // Fallback search by title
-      window.open(`https://www.amazon.com/s?k=${encodeURIComponent(title)}`, "_blank");
+    if (purchase_url) {
+      window.open(purchase_url, "_blank");
+      return;
     }
+    if (isbn) {
+      window.open(`https://www.amazon.co.uk/s?k=${isbn}`, "_blank");
+      return;
+    }
+    window.open(`https://www.amazon.co.uk/s?k=${encodeURIComponent(title)}`, "_blank");
   };
 
   return (
@@ -51,12 +52,22 @@ export default function Book({ book }) {
         </div>
 
         {/* Buy Button */}
-        <button
-          onClick={handleBuyClick}
-          className="self-start mt-4 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors text-sm font-medium"
-        >
-          Buy Now
-        </button>
+        <div className="flex gap-2 mt-4">
+          <button
+            onClick={handleBuyClick}
+            className="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors text-sm font-medium"
+          >
+            {purchase_url ? "Buy Now" : "Find Book"}
+          </button>
+          {onEdit && (
+            <button
+              onClick={() => onEdit(book)}
+              className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors text-sm font-medium"
+            >
+              Edit
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
