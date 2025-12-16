@@ -9,3 +9,6 @@ python-dotenv
 gpxpy
 Pillow
 polyline
+PyJWT
+passlib[bcrypt]
+email-validator
