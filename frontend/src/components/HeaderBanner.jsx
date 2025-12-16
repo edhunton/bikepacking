@@ -19,7 +19,7 @@ export default function HeaderBanner() {
   const imagePath = randomImage ? `/images/banners/${randomImage}` : null;
 
   return (
-    <header className="relative bg-gradient-to-r from-sky-600 to-blue-700 text-white overflow-hidden h-[640px]">
+    <header className="hidden md:block relative bg-gradient-to-r from-sky-600 to-blue-700 text-white overflow-hidden h-[640px]">
       {imagePath && (
         <div className="absolute inset-0 opacity-30">
           <img
