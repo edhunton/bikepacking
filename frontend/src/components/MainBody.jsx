@@ -7,13 +7,13 @@ import Recipes from "./recipes";
 import Komoot from "./komoot";
 import Instagram from "./instagram";
 
-export default function MainBody({ activeSection, books, loading, error }) {
+export default function MainBody({ activeSection, setActiveSection, books, loading, error }) {
   const renderSection = () => {
     switch (activeSection) {
       case "books":
         return <Books books={books} loading={loading} error={error} />;
       case "routes":
-        return <Routes />;
+        return <Routes books={books} onNavigateToBook={setActiveSection} />;
       case "tours":
         return <Tours />;
       case "blog-posts":
