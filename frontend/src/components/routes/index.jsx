@@ -3,11 +3,11 @@ import RouteMap from "./RouteMap";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 
-export default function Routes() {
+export default function Routes({ books: booksProp = [], onNavigateToBook }) {
   const [showForm, setShowForm] = useState(false);
   const [editingRouteId, setEditingRouteId] = useState(null);
   const [routes, setRoutes] = useState([]);
-  const [books, setBooks] = useState([]);
+  const [books, setBooks] = useState(booksProp);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -29,8 +29,12 @@ export default function Routes() {
     guidebook_id: "",
   });
 
-  // Load books for guidebook dropdown
+  // Load books for guidebook dropdown (if not provided as prop)
   useEffect(() => {
+    if (booksProp.length > 0) {
+      setBooks(booksProp);
+      return;
+    }
     async function loadBooks() {
       try {
         const res = await fetch(`${API_BASE}/api/v1/books/`);
@@ -43,7 +47,7 @@ export default function Routes() {
       }
     }
     loadBooks();
-  }, []);
+  }, [booksProp]);
 
   // Load routes
   useEffect(() => {
@@ -770,6 +774,40 @@ export default function Routes() {
                     {route.bike_choice && (
                       <div className="mt-2 text-sm text-slate-600">
                         <span className="font-medium">Bike Choice:</span> {route.bike_choice}
+                      </div>
+                    )}
+                    {route.guidebook_id && (
+                      <div className="mt-2 text-sm text-slate-600">
+                        <span className="font-medium">Guidebook:</span>{" "}
+                        {(() => {
+                          const book = books.find((b) => b.id === route.guidebook_id);
+                          if (!book) return "Unknown";
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (onNavigateToBook) {
+                                  onNavigateToBook("books");
+                                  // Scroll to book after a brief delay to allow render
+                                  setTimeout(() => {
+                                    const bookEl = document.getElementById(`book-${book.id}`);
+                                    if (bookEl) {
+                                      bookEl.scrollIntoView({ behavior: "smooth", block: "center" });
+                                      // Highlight briefly
+                                      bookEl.classList.add("ring-2", "ring-sky-500");
+                                      setTimeout(() => {
+                                        bookEl.classList.remove("ring-2", "ring-sky-500");
+                                      }, 2000);
+                                    }
+                                  }, 100);
+                                }
+                              }}
+                              className="text-sky-600 hover:text-sky-700 hover:underline"
+                            >
+                              {book.title}
+                            </button>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>

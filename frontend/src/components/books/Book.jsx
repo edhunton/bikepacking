@@ -28,6 +28,7 @@ export default function Book({
 
   return (
     <div
+      id={`book-${book.id}`}
       className="p-4 border border-slate-200 rounded-lg bg-white hover:shadow-md transition-shadow cursor-pointer"
       onClick={onToggle}
     >

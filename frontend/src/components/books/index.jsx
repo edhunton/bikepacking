@@ -486,17 +486,18 @@ export default function Books({ books, loading, error }) {
       ) : (
         <div className="flex flex-col gap-4">
           {localBooks.map((book) => (
-            <Book
-              key={book.id}
-              book={book}
-              onEdit={handleEdit}
-              onToggle={() => handleToggleExpand(book.id)}
-              isExpanded={expandedId === book.id}
-              photos={photosByBook[book.id] || []}
-              photosLoading={photosLoading && expandedId === book.id}
-              photosError={expandedId === book.id ? photosError : ""}
-              onPhotoClick={(index) => handleOpenLightbox(book.id, index)}
-            />
+            <div key={book.id} id={`book-${book.id}`}>
+              <Book
+                book={book}
+                onEdit={handleEdit}
+                onToggle={() => handleToggleExpand(book.id)}
+                isExpanded={expandedId === book.id}
+                photos={photosByBook[book.id] || []}
+                photosLoading={photosLoading && expandedId === book.id}
+                photosError={expandedId === book.id ? photosError : ""}
+                onPhotoClick={(index) => handleOpenLightbox(book.id, index)}
+              />
+            </div>
           ))}
         </div>
       )}
