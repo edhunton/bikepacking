@@ -78,7 +78,8 @@ def get_access_token() -> str:
 def get_authorization_url() -> str:
     """Generate Strava OAuth authorization URL with required scopes."""
     scopes = "activity:read_all"  # Request read access to all activities
-    redirect_uri = "http://localhost:8000/api/v1/strava/callback"  # You may want to make this configurable
+    # Redirect back to frontend - the frontend will handle the code exchange
+    redirect_uri = os.getenv("STRAVA_REDIRECT_URI", "http://localhost:5173/strava")
     auth_url = (
         f"https://www.strava.com/oauth/authorize"
         f"?client_id={STRAVA_CLIENT_ID}"
@@ -106,11 +107,13 @@ def exchange_code_for_token(code: str) -> dict:
             detail="Strava credentials not configured. Please set STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET environment variables."
         )
     
+    redirect_uri = os.getenv("STRAVA_REDIRECT_URI", "http://localhost:5173/strava")
     payload = {
         "client_id": STRAVA_CLIENT_ID,
         "client_secret": STRAVA_CLIENT_SECRET,
         "code": code,
         "grant_type": "authorization_code",
+        "redirect_uri": redirect_uri,
     }
     
     try:

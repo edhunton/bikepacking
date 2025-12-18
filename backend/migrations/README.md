@@ -46,6 +46,7 @@ docker exec -i bikepacking_postgres psql -U postgres -d bikepacking < migrations
 - `add_thumbnail_url_to_routes.sql` - Adds `thumbnail_url` field for storing route map thumbnails
 - `add_purchase_url_to_books.sql` - Adds `purchase_url` field for external sales links per book
 - `create_book_photos_table.sql` - Stores multiple photos per book with captions and geo metadata
+- `create_route_photos_table.sql` - Stores multiple photos per route with captions, geo metadata (latitude/longitude), and timestamps
 - `seed_routes.sql` - Seeds the routes table with 10 dummy routes (3 with guidebook references, 7 standalone)
 - `seed_routes_no_guidebooks.sql` - Seeds the routes table with 10 dummy routes (all standalone, no guidebook references)
 
@@ -90,3 +91,47 @@ docker exec -i bikepacking_postgres psql -U postgres -d bikepacking < migrations
 ```
 
 **Note:** Store links like Square checkout URLs here so each book carries its sales link.
+
+## Running the Google MyMap URL Migration (Routes)
+
+To add the `google_mymap_url` field for storing Google MyMap links:
+
+```bash
+# Using psql directly
+psql -h localhost -p 55432 -U postgres -d bikepacking -f migrations/add_google_mymap_url_to_routes.sql
+
+# Or using docker exec if using docker-compose
+docker exec -i bikepacking_postgres psql -U postgres -d bikepacking < migrations/add_google_mymap_url_to_routes.sql
+```
+
+**Note:** This migration adds a `google_mymap_url` field to store links to Google MyMaps. Maps should be shared with "Anyone with the link" so users can copy them to their own My Maps.
+
+## Running the Route Photos Migration
+
+To create the route_photos table for storing photos associated with routes:
+
+```bash
+# Using psql directly
+psql -h localhost -p 55432 -U postgres -d bikepacking -f migrations/create_route_photos_table.sql
+
+# Or using docker exec if using docker-compose
+docker exec -i bikepacking_postgres psql -U postgres -d bikepacking < migrations/create_route_photos_table.sql
+```
+
+**Note:** This migration creates the `route_photos` table with GPS coordinate fields (latitude/longitude) extracted from photo EXIF data, allowing photos to be displayed on route maps.
+
+## Running the Book Purchases Migration
+
+To create the book_purchases table for tracking which users have purchased which books:
+
+```bash
+# Using psql directly
+psql -h localhost -p 55432 -U postgres -d bikepacking -f migrations/create_book_purchases_table.sql
+
+# Or using docker exec if using docker-compose
+docker exec -i bikepacking_postgres psql -U postgres -d bikepacking < migrations/create_book_purchases_table.sql
+```
+
+**Note:** This migration creates the `book_purchases` table to track book purchases. Komoot collections and Google MyMaps are locked for routes with guidebooks unless the user has purchased the guidebook. Admins always have access.
+
+

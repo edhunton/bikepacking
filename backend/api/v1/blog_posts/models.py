@@ -10,3 +10,5 @@ class BlogPost(BaseModel):
     excerpt: str = ""  # Allow empty excerpt
     content: Optional[str] = None
     thumbnail: Optional[str] = None
+
+
