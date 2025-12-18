@@ -24,5 +24,4 @@ backend/.env
 backend/static/book_photos/
 backend/static/route_photos/
 backend/static/gpx/*.gpx
-backend/static/gpx/**/*.gpx
 backend/static/thumbnails/
