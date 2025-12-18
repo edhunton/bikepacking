@@ -3,7 +3,6 @@
 
 export default {
   banners: [
-  "IMG_2854.jpg",
   "banner_1.jpg",
   "banner_2.jpg",
   "banner_3.jpg",

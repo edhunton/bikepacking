@@ -95,6 +95,7 @@ export default function App() {
         books={books}
         loading={loading}
         error={error}
+        currentUser={auth.user}
       />
     </div>
   );

@@ -63,6 +63,8 @@ export default function StravaActivities() {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [authStatus, setAuthStatus] = useState("checking"); // "checking", "connected", "not_connected"
+  const [authUrl, setAuthUrl] = useState("");
   const [filters, setFilters] = useState({
     activityType: "Ride",
     minDistance: 30000, // 30km in meters
@@ -70,6 +72,31 @@ export default function StravaActivities() {
     minDuration: null,
     maxDuration: null,
   });
+
+  // Check Strava connection status and get auth URL
+  useEffect(() => {
+    async function checkAuth() {
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/strava/authorize`);
+        if (res.ok) {
+          const data = await res.json();
+          setAuthUrl(data.authorization_url);
+          // Try to fetch activities to check if connected
+          const activitiesRes = await fetch(`${API_BASE}/api/v1/strava/activities?per_page=1`);
+          if (activitiesRes.ok) {
+            setAuthStatus("connected");
+          } else {
+            setAuthStatus("not_connected");
+          }
+        } else {
+          setAuthStatus("not_connected");
+        }
+      } catch (err) {
+        setAuthStatus("not_connected");
+      }
+    }
+    checkAuth();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -101,33 +128,24 @@ export default function StravaActivities() {
         
         const res = await fetch(`${API_BASE}/api/v1/strava/activities?${params.toString()}`);
         if (!res.ok) {
-          throw new Error(`Request failed: ${res.status}`);
+          const errorData = await res.json().catch(() => ({}));
+          if (res.status === 500 && errorData.detail?.includes("not configured")) {
+            setAuthStatus("not_connected");
+            throw new Error("Strava not connected. Please connect your Strava account first.");
+          }
+          throw new Error(errorData.detail || `Request failed: ${res.status}`);
         }
         const data = await res.json();
-        console.log('Strava activities API response:', data);
-        console.log('Number of activities:', data?.length);
-        // Debug first activity to see structure
-        if (data && data.length > 0) {
-          const first = data[0];
-          console.log('First activity structure:', {
-            id: first.id,
-            name: first.name,
-            hasMap: !!first.map,
-            mapData: first.map,
-            mapPolyline: first.map?.summary_polyline?.substring(0, 50),
-            mapId: first.map?.id,
-            hasPhotos: !!first.photos,
-            photos: first.photos,
-            photosType: typeof first.photos,
-            photosKeys: first.photos ? Object.keys(first.photos) : null
-          });
-        }
         if (!cancelled) {
           setActivities(data || []);
+          setAuthStatus("connected");
         }
       } catch (err) {
         if (!cancelled) {
           setError(err.message);
+          if (err.message.includes("not connected") || err.message.includes("not configured")) {
+            setAuthStatus("not_connected");
+          }
         }
       } finally {
         if (!cancelled) {
@@ -135,11 +153,13 @@ export default function StravaActivities() {
         }
       }
     }
-    load();
+    if (authStatus !== "checking") {
+      load();
+    }
     return () => {
       cancelled = true;
     };
-  }, [filters]);
+  }, [filters, authStatus]);
 
   const formatDistance = (meters) => {
     if (meters >= 1000) {
@@ -202,6 +222,43 @@ export default function StravaActivities() {
 
   const activityTypes = ["Ride", "Run", "Walk", "Hike", "Swim", "Workout", "VirtualRide", "VirtualRun"];
 
+  const handleConnectStrava = () => {
+    if (authUrl) {
+      window.open(authUrl, "_blank", "width=600,height=700");
+    }
+  };
+
+  const handleTokenExchange = async (code) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/strava/token?code=${encodeURIComponent(code)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setAuthStatus("connected");
+        setError("");
+        // Reload activities
+        window.location.reload();
+        return data;
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Failed to connect Strava");
+      }
+    } catch (err) {
+      setError(err.message);
+      setAuthStatus("not_connected");
+    }
+  };
+
+  // Check for OAuth callback code in URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get("code");
+    if (code) {
+      handleTokenExchange(code);
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   return (
     <section className="bg-white rounded-xl p-6 shadow-lg border border-slate-200">
       <div className="flex items-center justify-between mb-6">
@@ -217,8 +274,35 @@ export default function StravaActivities() {
               Error
             </span>
           )}
+          {authStatus === "connected" && (
+            <span className="inline-block px-2.5 py-1 rounded-full bg-green-100 text-green-600 text-xs">
+              Connected
+            </span>
+          )}
         </div>
+        {authStatus === "not_connected" && (
+          <button
+            onClick={handleConnectStrava}
+            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
+          >
+            Connect Strava
+          </button>
+        )}
       </div>
+
+      {authStatus === "not_connected" && (
+        <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+          <h3 className="text-lg font-semibold text-orange-900 mb-2">Connect Your Strava Account</h3>
+          <p className="text-sm text-orange-800 mb-4">
+            To import routes and view your Strava activities, you need to connect your Strava account.
+            Click the "Connect Strava" button above to authorize the app.
+          </p>
+          <div className="text-xs text-orange-700 space-y-1">
+            <p><strong>Note:</strong> Strava uses OAuth2 authentication (not username/password).</p>
+            <p>You'll be redirected to Strava to log in and authorize this app.</p>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
