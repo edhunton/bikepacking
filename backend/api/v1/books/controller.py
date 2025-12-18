@@ -24,7 +24,7 @@ def get_all_books() -> List[Book]:
         HTTPException: If database query fails
     """
     query = """
-        SELECT id, title, author, published_at, isbn, cover_url, purchase_url
+        SELECT id, title, subtitle, author, published_at, isbn, cover_url, purchase_url, amazon_link
         FROM books
         ORDER BY id;
     """
@@ -40,11 +40,13 @@ def get_all_books() -> List[Book]:
         Book(
             id=row[0],
             title=row[1],
-            author=row[2],
-            published_at=row[3],
-            isbn=row[4] if len(row) > 4 else None,
-            cover_url=row[5] if len(row) > 5 else None,
-            purchase_url=row[6] if len(row) > 6 else None,
+            subtitle=row[2],
+            author=row[3],
+            published_at=row[4],
+            isbn=row[5] if len(row) > 5 else None,
+            cover_url=row[6] if len(row) > 6 else None,
+            purchase_url=row[7] if len(row) > 7 else None,
+            amazon_link=row[8] if len(row) > 8 else None,
         )
         for row in rows
     ]
@@ -52,7 +54,7 @@ def get_all_books() -> List[Book]:
 
 def get_book_by_id(book_id: int) -> Book:
     query = """
-        SELECT id, title, author, published_at, isbn, cover_url, purchase_url
+        SELECT id, title, subtitle, author, published_at, isbn, cover_url, purchase_url, amazon_link
         FROM books
         WHERE id = %s;
     """
@@ -71,11 +73,13 @@ def get_book_by_id(book_id: int) -> Book:
     return Book(
         id=row[0],
         title=row[1],
-        author=row[2],
-        published_at=row[3],
-        isbn=row[4] if len(row) > 4 else None,
-        cover_url=row[5] if len(row) > 5 else None,
-        purchase_url=row[6] if len(row) > 6 else None,
+        subtitle=row[2],
+        author=row[3],
+        published_at=row[4],
+        isbn=row[5] if len(row) > 5 else None,
+        cover_url=row[6] if len(row) > 6 else None,
+        purchase_url=row[7] if len(row) > 7 else None,
+        amazon_link=row[8] if len(row) > 8 else None,
     )
 
 
@@ -87,6 +91,9 @@ def update_book(book_id: int, data: UpdateBook) -> Book:
     if data.title is not None:
         updates.append("title = %s")
         params.append(data.title)
+    if data.subtitle is not None:
+        updates.append("subtitle = %s")
+        params.append(data.subtitle)
     if data.author is not None:
         updates.append("author = %s")
         params.append(data.author)
@@ -102,6 +109,9 @@ def update_book(book_id: int, data: UpdateBook) -> Book:
     if data.purchase_url is not None:
         updates.append("purchase_url = %s")
         params.append(data.purchase_url)
+    if data.amazon_link is not None:
+        updates.append("amazon_link = %s")
+        params.append(data.amazon_link)
 
     if not updates:
         return existing
@@ -110,7 +120,7 @@ def update_book(book_id: int, data: UpdateBook) -> Book:
         UPDATE books
         SET {', '.join(updates)}
         WHERE id = %s
-        RETURNING id, title, author, published_at, isbn, cover_url, purchase_url;
+        RETURNING id, title, subtitle, author, published_at, isbn, cover_url, purchase_url, amazon_link;
     """
     params.append(book_id)
 
@@ -131,11 +141,13 @@ def update_book(book_id: int, data: UpdateBook) -> Book:
     return Book(
         id=row[0],
         title=row[1],
-        author=row[2],
-        published_at=row[3],
-        isbn=row[4],
-        cover_url=row[5],
-        purchase_url=row[6],
+        subtitle=row[2] if len(row) > 2 else None,
+        author=row[3] if len(row) > 3 else None,
+        published_at=row[4] if len(row) > 4 else None,
+        isbn=row[5] if len(row) > 5 else None,
+        cover_url=row[6] if len(row) > 6 else None,
+        purchase_url=row[7] if len(row) > 7 else None,
+        amazon_link=row[8] if len(row) > 8 else None,
     )
 
 

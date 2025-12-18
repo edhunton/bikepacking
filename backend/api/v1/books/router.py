@@ -1,6 +1,5 @@
 from typing import List
-
-from fastapi import APIRouter, UploadFile, File, Form
+from fastapi import APIRouter, UploadFile, File, Form, Depends
 
 from .controller import (
     get_all_books,
@@ -10,6 +9,14 @@ from .controller import (
     delete_book_photo,
 )
 from .models import Book, UpdateBook, BookPhoto, CreateBookPhoto
+from .purchases import (
+    has_user_purchased_book,
+    get_access_key,
+    create_purchase_with_key,
+    validate_access_key,
+)
+from api.v1.users.controller import get_current_user
+from api.v1.users.models import UserInDB
 
 router = APIRouter()
 
@@ -52,3 +59,72 @@ def upload_photo(
 def delete_photo(photo_id: int):
     """Delete a book photo by ID."""
     return delete_book_photo(photo_id)
+
+
+@router.get("/{book_id}/purchased")
+def check_book_purchase(
+    book_id: int,
+    current_user: UserInDB = Depends(get_current_user)
+) -> dict:
+    """Check if the current user has purchased a specific book."""
+    purchased = has_user_purchased_book(current_user.id, book_id)
+    
+    # Get or generate access key if purchased
+    access_key = None
+    if purchased:
+        access_key = get_access_key(current_user.id, book_id)
+        # If no key exists, generate one (this handles existing purchases)
+        if not access_key:
+            access_key = create_purchase_with_key(current_user.id, book_id)
+    
+    return {
+        "purchased": purchased,
+        "book_id": book_id,
+        "access_key": access_key
+    }
+
+
+@router.get("/{book_id}/access-key")
+def get_book_access_key(
+    book_id: int,
+    current_user: UserInDB = Depends(get_current_user)
+) -> dict:
+    """
+    Get the unique access key for a purchased book.
+    Creates a new key if the user has purchased but no key exists yet.
+    """
+    if not has_user_purchased_book(current_user.id, book_id):
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=403,
+            detail="You must purchase this book to receive an access key"
+        )
+    
+    access_key = get_access_key(current_user.id, book_id)
+    if not access_key:
+        # Generate key for existing purchase
+        access_key = create_purchase_with_key(current_user.id, book_id)
+    
+    return {
+        "book_id": book_id,
+        "access_key": access_key,
+        "message": "Keep this key private. It is tied to your account."
+    }
+
+
+@router.post("/{book_id}/validate-key")
+def validate_book_access_key(
+    book_id: int,
+    access_key: str = Form(...)
+) -> dict:
+    """
+    Validate an access key for a book.
+    Returns user_id if valid, None otherwise.
+    This endpoint does not require authentication.
+    """
+    user_id = validate_access_key(access_key, book_id)
+    return {
+        "valid": user_id is not None,
+        "book_id": book_id,
+        "user_id": user_id
+    }

@@ -5,20 +5,24 @@ from pydantic import BaseModel
 class Book(BaseModel):
     id: int
     title: str
+    subtitle: str | None = None
     author: str
     published_at: date | None = None
     isbn: str | None = None
     cover_url: str | None = None
     purchase_url: str | None = None
+    amazon_link: str | None = None
 
 
 class UpdateBook(BaseModel):
     title: str | None = None
+    subtitle: str | None = None
     author: str | None = None
     published_at: date | None = None
     isbn: str | None = None
     cover_url: str | None = None
     purchase_url: str | None = None
+    amazon_link: str | None = None
 
 
 class BookPhoto(BaseModel):
@@ -36,3 +40,5 @@ class BookPhoto(BaseModel):
 class CreateBookPhoto(BaseModel):
     book_id: int
     caption: str | None = None
+
+
