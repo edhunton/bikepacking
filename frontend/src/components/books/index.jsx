@@ -3,7 +3,8 @@ import Book from "./Book";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 
-export default function Books({ books, loading, error }) {
+export default function Books({ books, loading, error, currentUser }) {
+  const isAdmin = currentUser?.role === "admin";
   const [localBooks, setLocalBooks] = useState(books);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -16,15 +17,16 @@ export default function Books({ books, loading, error }) {
   const [photosError, setPhotosError] = useState("");
   const [formData, setFormData] = useState({
     title: "",
+    subtitle: "",
     author: "",
     published_at: "",
     isbn: "",
     cover_url: "",
     purchase_url: "",
+    amazon_link: "",
   });
   const [photoForm, setPhotoForm] = useState({
     book_id: "",
-    caption: "",
     files: [],
   });
   const [photoStatus, setPhotoStatus] = useState({ loading: false, error: "", success: "" });
@@ -70,11 +72,13 @@ export default function Books({ books, loading, error }) {
     setFormSuccess("");
     setFormData({
       title: book.title || "",
+      subtitle: book.subtitle || "",
       author: book.author || "",
       published_at: book.published_at ? book.published_at.slice(0, 10) : "",
       isbn: book.isbn || "",
       cover_url: book.cover_url || "",
       purchase_url: book.purchase_url || "",
+      amazon_link: book.amazon_link || "",
     });
     setTimeout(() => {
       const el = document.getElementById("book-edit-form");
@@ -119,7 +123,7 @@ export default function Books({ books, loading, error }) {
       }
 
       setPhotoStatus({ loading: false, error: "", success: "Photos uploaded" });
-      setPhotoForm((prev) => ({ ...prev, files: [], caption: "" }));
+      setPhotoForm((prev) => ({ ...prev, files: [] }));
       const fileInput = document.getElementById("book_photo_file");
       if (fileInput) fileInput.value = "";
     } catch (err) {
@@ -169,11 +173,13 @@ export default function Books({ books, loading, error }) {
 
     const payload = {
       title: formData.title || null,
+      subtitle: formData.subtitle || null,
       author: formData.author || null,
       published_at: formData.published_at || null,
       isbn: formData.isbn || null,
       cover_url: formData.cover_url || null,
       purchase_url: formData.purchase_url || null,
+      amazon_link: formData.amazon_link || null,
     };
 
     try {
@@ -219,7 +225,7 @@ export default function Books({ books, loading, error }) {
             </span>
           )}
         </div>
-        {editingId && (
+        {isAdmin && editingId && (
           <button
             onClick={() => {
               setShowForm(false);
@@ -234,7 +240,7 @@ export default function Books({ books, loading, error }) {
         )}
       </div>
 
-      {showForm && (
+      {isAdmin && showForm && (
         <div
           id="book-edit-form"
           className="border border-slate-200 rounded-lg p-4 bg-slate-50 space-y-3"
@@ -263,6 +269,18 @@ export default function Books({ books, loading, error }) {
                 value={formData.title}
                 onChange={handleInputChange}
                 required
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Subtitle
+              </label>
+              <input
+                type="text"
+                name="subtitle"
+                value={formData.subtitle}
+                onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none"
               />
             </div>
@@ -328,6 +346,22 @@ export default function Books({ books, loading, error }) {
                 placeholder="https://square.link/..."
               />
             </div>
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Amazon Link
+              </label>
+              <input
+                type="text"
+                name="amazon_link"
+                value={formData.amazon_link}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                placeholder="https://www.amazon.co.uk/Book-Title/dp/1234567890"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Full Amazon product URL (e.g., https://www.amazon.co.uk/Book-Title/dp/1234567890)
+              </p>
+            </div>
             <div className="sm:col-span-2 flex gap-2">
               <button
                 type="submit"
@@ -353,7 +387,8 @@ export default function Books({ books, loading, error }) {
         </div>
       )}
 
-      {/* Photo upload */}
+      {/* Photo upload - Admin only */}
+      {isAdmin && (
       <div className="border border-slate-200 rounded-lg p-4 bg-white space-y-3">
         <h3 className="text-lg font-semibold text-slate-900">Add Photo to a Book</h3>
         {photoStatus.error && (
@@ -384,17 +419,6 @@ export default function Books({ books, loading, error }) {
               ))}
             </select>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Caption</label>
-            <input
-              type="text"
-              name="caption"
-              value={photoForm.caption}
-              onChange={handlePhotoChange}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none"
-              placeholder="Optional caption"
-            />
-          </div>
           <div className="sm:col-span-2">
             <label className="block text-sm font-medium text-slate-700 mb-1">Photos *</label>
             <input
@@ -424,6 +448,7 @@ export default function Books({ books, loading, error }) {
           </div>
         </form>
       </div>
+      )}
 
       {/* Lightbox overlay */}
       {lightbox.open && lightbox.bookId && (
@@ -489,7 +514,7 @@ export default function Books({ books, loading, error }) {
             <div key={book.id} id={`book-${book.id}`}>
               <Book
                 book={book}
-                onEdit={handleEdit}
+                onEdit={isAdmin ? handleEdit : null}
                 onToggle={() => handleToggleExpand(book.id)}
                 isExpanded={expandedId === book.id}
                 photos={photosByBook[book.id] || []}

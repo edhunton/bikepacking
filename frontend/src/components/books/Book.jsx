@@ -8,7 +8,7 @@ export default function Book({
   photosError,
   onPhotoClick,
 }) {
-  const { title, author, published_at, isbn, cover_url, thumbnail, purchase_url } = book;
+  const { title, subtitle, author, published_at, isbn, cover_url, thumbnail, purchase_url, amazon_link } = book;
 
   // Use cover_url, thumbnail, or a placeholder
   const imageUrl = cover_url || thumbnail || "/images/book-placeholder.jpg";
@@ -24,6 +24,24 @@ export default function Book({
       return;
     }
     window.open(`https://www.amazon.co.uk/s?k=${encodeURIComponent(title)}`, "_blank");
+  };
+
+  // Handle review button click - link to Amazon reviews
+  const handleReviewClick = () => {
+    // If we have the full Amazon link, use it and append #customerReviews to go to reviews section
+    if (amazon_link) {
+      // Ensure the link ends with the ASIN, then append #customerReviews
+      const reviewUrl = amazon_link.split('#')[0] + '#customerReviews';
+      window.open(reviewUrl, "_blank");
+      return;
+    }
+    // Fallback: Use Amazon search
+    if (isbn) {
+      window.open(`https://www.amazon.co.uk/s?k=${encodeURIComponent(isbn)}&i=stripbooks`, "_blank");
+      return;
+    }
+    const searchQuery = author ? `${title} ${author}` : title;
+    window.open(`https://www.amazon.co.uk/s?k=${encodeURIComponent(searchQuery)}&i=stripbooks`, "_blank");
   };
 
   return (
@@ -52,6 +70,9 @@ export default function Book({
             <h3 className="text-lg font-semibold text-slate-900 mb-1">
               {title}
             </h3>
+            {subtitle && (
+              <p className="text-slate-500 text-sm mb-2 italic">{subtitle}</p>
+            )}
             {author && (
               <p className="text-slate-600 text-sm mb-2">By {author}</p>
             )}
@@ -75,6 +96,16 @@ export default function Book({
               className="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors text-sm font-medium"
             >
               {purchase_url ? "Buy Now" : "Find Book"}
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleReviewClick();
+              }}
+              className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm font-medium"
+              title="Write a review on Amazon"
+            >
+              Write Review
             </button>
             {onEdit && (
               <button
