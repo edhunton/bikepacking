@@ -23,3 +23,5 @@ backend/.env
 # User-uploaded static assets (use cloud storage/CDN in production)
 backend/static/book_photos/
 backend/static/route_photos/
+backend/static/gpx/*.gpx
+backend/static/thumbnails/
