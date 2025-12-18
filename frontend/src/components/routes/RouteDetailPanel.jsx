@@ -266,65 +266,17 @@ export default function RouteDetailPanel({ route, onClose, isAdmin, onEdit, inli
         <div className="border-t border-slate-200 bg-slate-50">
           <div className="p-4 space-y-4">
             {/* Route Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-              {route.distance && (
-                <div>
-                  <span className="text-slate-500">Distance</span>
-                  <p className="font-semibold text-slate-900">
-                    {route.distance > 1000 ? `${(route.distance / 1000).toFixed(1)} km` : `${Math.round(route.distance)} m`}
-                  </p>
-                </div>
-              )}
-              {formatTimeRange() && (
-                <div>
-                  <span className="text-slate-500">Time</span>
-                  <p className="font-semibold text-slate-900">{formatTimeRange()}</p>
-                </div>
-              )}
-              {route.grade && (
-                <div>
-                  <span className="text-slate-500">Grade</span>
-                  <div className="flex items-center gap-1.5">
-                    {getGradeIndicator(route.grade)}
-                    <span className="font-semibold text-slate-900 capitalize">{route.grade}</span>
-                  </div>
-                </div>
-              )}
-              {route.country && (
-                <div>
-                  <span className="text-slate-500">Country</span>
-                  <p className="font-semibold text-slate-900">{route.country}</p>
-                </div>
-              )}
-            </div>
+            {formatTimeRange() && (
+              <div className="text-sm">
+                <span className="text-slate-500">Time: </span>
+                <span className="font-semibold text-slate-900">{formatTimeRange()}</span>
+              </div>
+            )}
 
             {/* Interactive Map */}
             {route.gpx_url && (
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-base font-semibold text-slate-900">Route Map</h3>
-                  {(hasPurchasedGuidebook === true || !route.guidebook_id) ? (
-                    <a
-                      href={route.gpx_url.startsWith('http') ? route.gpx_url : `${API_BASE}${route.gpx_url}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      download
-                      className="inline-flex items-center px-3 py-1.5 text-xs bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
-                    >
-                      Download GPX
-                      <svg className="ml-1.5 w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                    </a>
-                  ) : (
-                    <div className="inline-flex items-center px-3 py-1.5 text-xs bg-slate-300 text-slate-600 rounded-lg cursor-not-allowed">
-                      <svg className="mr-1.5 w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                      GPX Locked
-                    </div>
-                  )}
-                </div>
+                <h3 className="text-base font-semibold text-slate-900 mb-2">Route Map</h3>
                 <div className="border border-slate-200 rounded-lg overflow-hidden">
                   <RouteMap 
                     gpxUrl={route.gpx_url} 
@@ -347,25 +299,24 @@ export default function RouteDetailPanel({ route, onClose, isAdmin, onEdit, inli
 
             {/* Photos */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-base font-semibold text-slate-900">Photos</h3>
-                <div className="flex items-center gap-2">
-                  {isAdmin && photos.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={handleReprocessGPS}
-                      disabled={reprocessingGPS}
-                      className="text-xs text-sky-600 hover:text-sky-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Re-process photos to extract GPS coordinates from EXIF data"
-                    >
-                      {reprocessingGPS ? "Processing..." : "Extract GPS"}
-                    </button>
-                  )}
-                  {isAdmin && (
-                    <button
-                      onClick={() => setShowPhotoUpload(!showPhotoUpload)}
-                      className="px-3 py-1.5 text-sm bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
-                    >
+              <h3 className="text-base font-semibold text-slate-900 mb-2">Photos</h3>
+              <div className="flex items-center justify-end gap-2 mb-2">
+                {isAdmin && photos.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleReprocessGPS}
+                    disabled={reprocessingGPS}
+                    className="text-xs text-sky-600 hover:text-sky-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Re-process photos to extract GPS coordinates from EXIF data"
+                  >
+                    {reprocessingGPS ? "Processing..." : "Extract GPS"}
+                  </button>
+                )}
+                {isAdmin && (
+                  <button
+                    onClick={() => setShowPhotoUpload(!showPhotoUpload)}
+                    className="px-3 py-1.5 text-sm bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
+                  >
                     {showPhotoUpload ? "Cancel" : "Add Photo"}
                   </button>
                 )}
@@ -592,7 +543,6 @@ export default function RouteDetailPanel({ route, onClose, isAdmin, onEdit, inli
               )}
             </div>
           </div>
-        </div>
 
         {/* Lightbox (shared for both modes) */}
         {lightboxOpen && photos.length > 0 && (
@@ -604,10 +554,10 @@ export default function RouteDetailPanel({ route, onClose, isAdmin, onEdit, inli
               <img src={photos[lightboxIndex].photo_url} alt={photos[lightboxIndex].caption || `Photo ${lightboxIndex + 1}`} className="w-full max-h-[90vh] object-contain" />
               {photos[lightboxIndex].caption && <div className="absolute bottom-0 left-0 right-0 px-4 py-2 bg-black/70 text-white text-sm">{photos[lightboxIndex].caption}</div>}
               <div className="absolute bottom-4 right-4 px-3 py-1 rounded bg-black/70 text-white text-xs">{lightboxIndex + 1} / {photos.length}</div>
-            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+        </div>
       </div>
     );
   }
@@ -639,62 +589,17 @@ export default function RouteDetailPanel({ route, onClose, isAdmin, onEdit, inli
         {/* Content */}
         <div className="p-6 space-y-6">
           {/* Route Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            {route.distance && (
-              <div>
-                <span className="text-slate-500">Distance</span>
-                <p className="font-semibold text-slate-900">
-                  {route.distance > 1000 ? `${(route.distance / 1000).toFixed(1)} km` : `${Math.round(route.distance)} m`}
-                </p>
-              </div>
-            )}
-            {formatTimeRange() && (
-              <div>
-                <span className="text-slate-500">Time</span>
-                <p className="font-semibold text-slate-900">{formatTimeRange()}</p>
-              </div>
-            )}
-            {route.grade && (
-              <div>
-                <span className="text-slate-500">Grade</span>
-                <p className="font-semibold text-slate-900 capitalize">{route.grade}</p>
-              </div>
-            )}
-            {route.country && (
-              <div>
-                <span className="text-slate-500">Country</span>
-                <p className="font-semibold text-slate-900">{route.country}</p>
-              </div>
-            )}
-          </div>
+          {formatTimeRange() && (
+            <div className="text-sm">
+              <span className="text-slate-500">Time: </span>
+              <span className="font-semibold text-slate-900">{formatTimeRange()}</span>
+            </div>
+          )}
 
           {/* Interactive Map */}
           {route.gpx_url && (
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-base font-semibold text-slate-900">Route Map</h3>
-                {(hasPurchasedGuidebook === true || !route.guidebook_id) ? (
-                  <a
-                    href={route.gpx_url.startsWith('http') ? route.gpx_url : `${API_BASE}${route.gpx_url}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    download
-                    className="inline-flex items-center px-4 py-2 text-sm bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
-                  >
-                    Download GPX
-                    <svg className="ml-1.5 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                  </a>
-                ) : (
-                  <div className="inline-flex items-center px-4 py-2 text-sm bg-slate-300 text-slate-600 rounded-lg cursor-not-allowed">
-                    <svg className="mr-1.5 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                    GPX Locked
-                  </div>
-                )}
-              </div>
+              <h3 className="text-base font-semibold text-slate-900 mb-2">Route Map</h3>
               <div className="border border-slate-200 rounded-lg overflow-hidden">
                 <RouteMap 
                   gpxUrl={route.gpx_url} 
@@ -719,29 +624,27 @@ export default function RouteDetailPanel({ route, onClose, isAdmin, onEdit, inli
 
           {/* Photos */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-base font-semibold text-slate-900">Photos</h3>
-              <div className="flex items-center gap-2">
-                {isAdmin && photos.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleReprocessGPS}
-                    disabled={reprocessingGPS}
-                    className="text-xs text-sky-600 hover:text-sky-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Re-process photos to extract GPS coordinates from EXIF data"
-                  >
-                    {reprocessingGPS ? "Processing..." : "Extract GPS from Photos"}
-                  </button>
-                )}
-                {isAdmin && (
-                  <button
-                    onClick={() => setShowPhotoUpload(!showPhotoUpload)}
-                    className="px-3 py-1.5 text-sm bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
-                  >
-                    {showPhotoUpload ? "Cancel" : "Add Photo"}
-                  </button>
-                )}
-              </div>
+            <h3 className="text-base font-semibold text-slate-900 mb-2">Photos</h3>
+            <div className="flex items-center justify-end gap-2 mb-2">
+              {isAdmin && photos.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleReprocessGPS}
+                  disabled={reprocessingGPS}
+                  className="text-xs text-sky-600 hover:text-sky-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Re-process photos to extract GPS coordinates from EXIF data"
+                >
+                  {reprocessingGPS ? "Processing..." : "Extract GPS from Photos"}
+                </button>
+              )}
+              {isAdmin && (
+                <button
+                  onClick={() => setShowPhotoUpload(!showPhotoUpload)}
+                  className="px-3 py-1.5 text-sm bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
+                >
+                  {showPhotoUpload ? "Cancel" : "Add Photo"}
+                </button>
+              )}
             </div>
 
             {isAdmin && showPhotoUpload && (
