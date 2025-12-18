@@ -1,10 +1,18 @@
 import { useState, useEffect, useRef } from "react";
 import RouteMap from "./RouteMap";
+import RouteDetailPanel from "./RouteDetailPanel";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 
-export default function Routes({ books: booksProp = [], onNavigateToBook }) {
+export default function Routes({ books: booksProp = [], onNavigateToBook, currentUser }) {
+  const isAdmin = currentUser?.role === "admin";
   const [showForm, setShowForm] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importSource, setImportSource] = useState("strava"); // "strava" or "komoot"
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState("");
+  const [stravaActivities, setStravaActivities] = useState([]);
+  const [komootTours, setKomootTours] = useState([]);
   const [editingRouteId, setEditingRouteId] = useState(null);
   const [routes, setRoutes] = useState([]);
   const [books, setBooks] = useState(booksProp);
@@ -12,11 +20,12 @@ export default function Routes({ books: booksProp = [], onNavigateToBook }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const generatingThumbnails = useRef(new Set()); // Track routes currently generating thumbnails
+  const [selectedRoute, setSelectedRoute] = useState(null);
+  const [purchasedBookIds, setPurchasedBookIds] = useState(new Set());
   const [formData, setFormData] = useState({
     title: "",
     gpx_url: "",
     gpx_file: null,
-    difficulty: "",
     country: "",
     county: "",
     distance: "",
@@ -27,6 +36,11 @@ export default function Routes({ books: booksProp = [], onNavigateToBook }) {
     getting_there: "",
     bike_choice: "",
     guidebook_id: "",
+    min_time: "",
+    max_time: "",
+    off_road_distance: "",
+    off_road_percentage: "",
+    grade: "",
   });
 
   // Load books for guidebook dropdown (if not provided as prop)
@@ -132,7 +146,6 @@ export default function Routes({ books: booksProp = [], onNavigateToBook }) {
       title: route.title || "",
       gpx_url: gpxUrl,
       gpx_file: null,
-      difficulty: route.difficulty || "",
       country: route.country || "",
       county: route.county || "",
       distance: route.distance ? route.distance.toString() : "",
@@ -143,6 +156,15 @@ export default function Routes({ books: booksProp = [], onNavigateToBook }) {
       getting_there: route.getting_there || "",
       bike_choice: route.bike_choice || "",
       guidebook_id: route.guidebook_id ? route.guidebook_id.toString() : "",
+      min_time: route.min_time ? route.min_time.toString() : "",
+      max_time: route.max_time ? route.max_time.toString() : "",
+      off_road_distance: route.off_road_distance ? route.off_road_distance.toString() : "",
+      off_road_percentage: route.off_road_percentage ? route.off_road_percentage.toString() : "",
+      grade: route.grade || "",
+      description: route.description || "",
+      strava_activities: route.strava_activities || "",
+      google_mymap_url: route.google_mymap_url || "",
+      komoot_collections: route.komoot_collections || "",
     });
     setShowForm(true);
     setError("");
@@ -158,7 +180,6 @@ export default function Routes({ books: booksProp = [], onNavigateToBook }) {
       title: "",
       gpx_url: "",
       gpx_file: null,
-      difficulty: "",
       country: "",
       county: "",
       distance: "",
@@ -169,6 +190,11 @@ export default function Routes({ books: booksProp = [], onNavigateToBook }) {
       getting_there: "",
       bike_choice: "",
       guidebook_id: "",
+      min_time: "",
+      max_time: "",
+      off_road_distance: "",
+      off_road_percentage: "",
+      grade: "",
     });
     const fileInput = document.getElementById("gpx_file");
     if (fileInput) fileInput.value = "";
@@ -242,7 +268,6 @@ export default function Routes({ books: booksProp = [], onNavigateToBook }) {
       const submitData = {
         title: formData.title,
         gpx_url: gpxUrl || null,
-        difficulty: formData.difficulty || null,
         country: formData.country || null,
         county: formData.county || null,
         distance: formData.distance ? parseFloat(formData.distance) : null,
@@ -253,6 +278,15 @@ export default function Routes({ books: booksProp = [], onNavigateToBook }) {
         getting_there: formData.getting_there || null,
         bike_choice: formData.bike_choice || null,
         guidebook_id: formData.guidebook_id ? parseInt(formData.guidebook_id, 10) : null,
+        min_time: formData.min_time ? parseFloat(formData.min_time) : null,
+        max_time: formData.max_time ? parseFloat(formData.max_time) : null,
+        off_road_distance: formData.off_road_distance ? parseFloat(formData.off_road_distance) : null,
+        off_road_percentage: formData.off_road_percentage ? parseFloat(formData.off_road_percentage) : null,
+        grade: formData.grade || null,
+        description: formData.description || null,
+        strava_activities: formData.strava_activities || null,
+        google_mymap_url: formData.google_mymap_url || null,
+        komoot_collections: formData.komoot_collections || null,
       };
 
       let res;
@@ -317,7 +351,6 @@ export default function Routes({ books: booksProp = [], onNavigateToBook }) {
         title: "",
         gpx_url: "",
         gpx_file: null,
-        difficulty: "",
         country: "",
         county: "",
         distance: "",
@@ -326,8 +359,13 @@ export default function Routes({ books: booksProp = [], onNavigateToBook }) {
         starting_station: "",
         ending_station: "",
         getting_there: "",
-        bike_choice: "",
-        guidebook_id: "",
+      bike_choice: "",
+      guidebook_id: "",
+      min_time: "",
+      max_time: "",
+      off_road_distance: "",
+        off_road_percentage: "",
+        grade: "",
       });
       
       // Reset file input
@@ -347,9 +385,31 @@ export default function Routes({ books: booksProp = [], onNavigateToBook }) {
     }
   };
 
-  const formatDistance = (km) => {
-    if (!km) return "N/A";
+  const formatDistance = (distance) => {
+    if (!distance) return "N/A";
+    // If distance is > 1000, assume it's in meters, otherwise assume km
+    const km = distance > 1000 ? distance / 1000 : distance;
     return `${km.toFixed(1)} km`;
+  };
+
+  const getGradeIndicator = (grade) => {
+    if (!grade) return null;
+    const gradeLower = grade.toLowerCase();
+    
+    switch (gradeLower) {
+      case 'easy':
+        return <span className="inline-block w-3 h-3 rounded-full bg-green-500" title="Easy" />;
+      case 'moderate':
+        return <span className="inline-block w-0 h-0 border-l-[6px] border-r-[6px] border-t-[10px] border-l-transparent border-r-transparent border-t-blue-500" title="Moderate" />;
+      case 'difficult':
+        return <span className="inline-block w-3 h-3 rounded-full bg-red-500" title="Difficult" />;
+      case 'hard':
+        return <span className="inline-block w-3 h-3 rotate-45 bg-black" title="Hard" />;
+      case 'very hard':
+        return <span className="inline-flex items-center gap-0.5" title="Very Hard"><span className="inline-block w-3 h-3 rotate-45 bg-black" /><span className="inline-block w-3 h-3 rotate-45 bg-black" /></span>;
+      default:
+        return null;
+    }
   };
 
   const formatElevation = (meters) => {
@@ -357,26 +417,211 @@ export default function Routes({ books: booksProp = [], onNavigateToBook }) {
     return `${meters.toLocaleString()} m`;
   };
 
+  // Load Strava activities for import
+  const loadStravaActivities = async () => {
+    setImportLoading(true);
+    setImportError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/strava/activities?per_page=50&activity_type=Ride`);
+      if (!res.ok) {
+        throw new Error(`Failed to load Strava activities: ${res.status}`);
+      }
+      const data = await res.json();
+      setStravaActivities(data);
+    } catch (err) {
+      setImportError(err.message);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  // Load Komoot tours for import
+  const loadKomootTours = async () => {
+    setImportLoading(true);
+    setImportError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/komoot/tours?per_page=50`);
+      if (!res.ok) {
+        throw new Error(`Failed to load Komoot tours: ${res.status}`);
+      }
+      const data = await res.json();
+      setKomootTours(data);
+    } catch (err) {
+      setImportError(err.message);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  // Handle import source change
+  const handleImportSourceChange = (source) => {
+    setImportSource(source);
+    setImportError("");
+    if (source === "strava") {
+      loadStravaActivities();
+    } else {
+      loadKomootTours();
+    }
+  };
+
+  // Import a route from Strava activity
+  const handleImportFromStrava = async (activity) => {
+    setImportLoading(true);
+    setImportError("");
+    try {
+      // Construct Strava GPX export URL
+      const stravaGpxUrl = `https://www.strava.com/activities/${activity.id}/export_gpx`;
+      
+      // Try to download the GPX file via backend (avoids CORS issues)
+      let gpxUrl = "";
+      
+      try {
+        // Use backend endpoint to download GPX file
+        const downloadRes = await fetch(`${API_BASE}/api/v1/routes/download-gpx?gpx_url=${encodeURIComponent(stravaGpxUrl)}`, {
+          method: "POST",
+        });
+        
+        if (downloadRes.ok) {
+          const downloadData = await downloadRes.json();
+          gpxUrl = downloadData.url;
+        } else {
+          // If download fails, fall back to using the URL directly
+          const errorData = await downloadRes.json().catch(() => ({}));
+          console.warn("Could not download GPX file via backend:", errorData);
+          gpxUrl = stravaGpxUrl;
+        }
+      } catch (downloadErr) {
+        // If download fails, use URL directly
+        console.warn("Could not download GPX file, using URL directly:", downloadErr);
+        gpxUrl = stravaGpxUrl;
+      }
+      
+      // Pre-fill the form with activity data
+      setFormData({
+        title: activity.name || "",
+        gpx_url: gpxUrl,
+        gpx_file: null,
+        country: "",
+        county: "",
+        distance: activity.distance ? (activity.distance / 1000).toFixed(2) : "",
+        ascent: activity.total_elevation_gain ? activity.total_elevation_gain.toString() : "",
+        descent: "",
+        starting_station: "",
+        ending_station: "",
+        getting_there: "",
+        bike_choice: activity.type === "Ride" ? "Gravel" : "",
+        guidebook_id: "",
+        min_time: "",
+        max_time: "",
+        off_road_distance: "",
+        off_road_percentage: "",
+        grade: "",
+        description: "",
+        strava_activities: "",
+        google_mymap_url: "",
+        komoot_collections: "",
+      });
+
+      // Close import modal and open form
+      setShowImportModal(false);
+      setShowForm(true);
+      setEditingRouteId(null);
+      if (gpxUrl && !gpxUrl.includes("strava.com")) {
+        setSuccess(`Imported "${activity.name}" from Strava. GPX file has been downloaded and saved locally.`);
+      } else {
+        setSuccess(`Imported "${activity.name}" from Strava. GPX URL has been added. If it requires authentication, you may need to download the GPX file manually and upload it.`);
+      }
+    } catch (err) {
+      setImportError(err.message);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  // Import a route from Komoot tour
+  const handleImportFromKomoot = async (tour) => {
+    setImportLoading(true);
+    setImportError("");
+    try {
+      // Pre-fill the form with tour data
+      setFormData({
+        title: tour.name || "",
+        gpx_url: "",
+        gpx_file: null,
+        country: "",
+        county: "",
+        distance: tour.distance ? (tour.distance / 1000).toFixed(2) : "",
+        ascent: tour.elevation_gain ? tour.elevation_gain.toString() : "",
+        descent: "",
+        starting_station: "",
+        ending_station: "",
+        getting_there: "",
+        bike_choice: "",
+        guidebook_id: "",
+        min_time: "",
+        max_time: "",
+        off_road_distance: "",
+        off_road_percentage: "",
+        grade: "",
+        description: "",
+        strava_activities: "",
+        google_mymap_url: "",
+        komoot_collections: "",
+      });
+
+      // Close import modal and open form
+      setShowImportModal(false);
+      setShowForm(true);
+      setEditingRouteId(null);
+      setSuccess(`Pre-filled form with data from "${tour.name}". Please add GPX file or URL.`);
+    } catch (err) {
+      setImportError(err.message);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  // Load activities/tours when import modal opens
+  useEffect(() => {
+    if (showImportModal && isAdmin) {
+      if (importSource === "strava") {
+        loadStravaActivities();
+      } else {
+        loadKomootTours();
+      }
+    }
+  }, [showImportModal, importSource, isAdmin]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-2xl font-semibold text-slate-900">Routes</h2>
-        <button
-          onClick={() => {
-            if (showForm) {
-              handleCancel();
-            } else {
-              setShowForm(true);
-              setEditingRouteId(null);
-            }
-          }}
-          className="w-full sm:w-auto px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
-        >
-          {showForm ? "Cancel" : "Add New Route"}
-        </button>
+        {isAdmin && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              Import Route
+            </button>
+            <button
+              onClick={() => {
+                if (showForm) {
+                  handleCancel();
+                } else {
+                  setShowForm(true);
+                  setEditingRouteId(null);
+                }
+              }}
+              className="w-full sm:w-auto px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
+            >
+              {showForm ? "Cancel" : "Add New Route"}
+            </button>
+          </div>
+        )}
       </div>
 
-      {showForm && (
+      {isAdmin && showForm && (
         <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg border border-slate-200">
           <h3 className="text-xl font-semibold text-slate-900 mb-4">
             {editingRouteId ? "Edit Route" : "Add New Route"}
@@ -450,23 +695,24 @@ export default function Routes({ books: booksProp = [], onNavigateToBook }) {
                 />
               </div>
 
-              {/* Difficulty */}
+              {/* Grade */}
               <div>
-                <label htmlFor="difficulty" className="block text-sm font-medium text-slate-700 mb-1">
-                  Difficulty
+                <label htmlFor="grade" className="block text-sm font-medium text-slate-700 mb-1">
+                  Grade
                 </label>
                 <select
-                  id="difficulty"
-                  name="difficulty"
-                  value={formData.difficulty}
+                  id="grade"
+                  name="grade"
+                  value={formData.grade}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
                 >
-                  <option value="">Select difficulty</option>
-                  <option value="Easy">Easy</option>
-                  <option value="Moderate">Moderate</option>
-                  <option value="Hard">Hard</option>
-                  <option value="Very Hard">Very Hard</option>
+                  <option value="">Select grade</option>
+                  <option value="easy">Easy</option>
+                  <option value="moderate">Moderate</option>
+                  <option value="difficult">Difficult</option>
+                  <option value="hard">Hard</option>
+                  <option value="very hard">Very Hard</option>
                 </select>
               </div>
 
@@ -541,70 +787,155 @@ export default function Routes({ books: booksProp = [], onNavigateToBook }) {
                 />
               </div>
 
-              {/* Ascent */}
-              <div>
-                <label htmlFor="ascent" className="block text-sm font-medium text-slate-700 mb-1">
-                  Ascent (meters)
-                </label>
-                <input
-                  type="number"
-                  id="ascent"
-                  name="ascent"
-                  min="0"
-                  value={formData.ascent}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
-                  placeholder="e.g., 4500"
-                />
+              {/* Time Range */}
+              <div className="space-y-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                <h4 className="text-sm font-semibold text-slate-700 mb-2">Time (days)</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="min_time" className="block text-sm font-medium text-slate-700 mb-1">
+                      Min
+                    </label>
+                    <input
+                      type="number"
+                      id="min_time"
+                      name="min_time"
+                      step="0.1"
+                      min="0"
+                      value={formData.min_time}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+                      placeholder="e.g., 2"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="max_time" className="block text-sm font-medium text-slate-700 mb-1">
+                      Max
+                    </label>
+                    <input
+                      type="number"
+                      id="max_time"
+                      name="max_time"
+                      step="0.1"
+                      min="0"
+                      value={formData.max_time}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+                      placeholder="e.g., 3"
+                    />
+                  </div>
+                </div>
               </div>
 
-              {/* Descent */}
-              <div>
-                <label htmlFor="descent" className="block text-sm font-medium text-slate-700 mb-1">
-                  Descent (meters)
-                </label>
-                <input
-                  type="number"
-                  id="descent"
-                  name="descent"
-                  min="0"
-                  value={formData.descent}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
-                  placeholder="e.g., 4500"
-                />
+              {/* Ascent and Descent - Grouped */}
+              <div className="space-y-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                <h4 className="text-sm font-semibold text-slate-700 mb-2">Elevation</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="ascent" className="block text-sm font-medium text-slate-700 mb-1">
+                      Ascent (meters)
+                    </label>
+                    <input
+                      type="number"
+                      id="ascent"
+                      name="ascent"
+                      min="0"
+                      value={formData.ascent}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+                      placeholder="e.g., 4500"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="descent" className="block text-sm font-medium text-slate-700 mb-1">
+                      Descent (meters)
+                    </label>
+                    <input
+                      type="number"
+                      id="descent"
+                      name="descent"
+                      min="0"
+                      value={formData.descent}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+                      placeholder="e.g., 4500"
+                    />
+                  </div>
+                </div>
               </div>
 
-              {/* Starting Station */}
-              <div>
-                <label htmlFor="starting_station" className="block text-sm font-medium text-slate-700 mb-1">
-                  Starting Station
-                </label>
-                <input
-                  type="text"
-                  id="starting_station"
-                  name="starting_station"
-                  value={formData.starting_station}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
-                  placeholder="e.g., Winchester Station"
-                />
+              {/* Off-road distance and percentage */}
+              <div className="space-y-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                <h4 className="text-sm font-semibold text-slate-700 mb-2">Off-Road</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="off_road_distance" className="block text-sm font-medium text-slate-700 mb-1">
+                      Distance (km)
+                    </label>
+                    <input
+                      type="number"
+                      id="off_road_distance"
+                      name="off_road_distance"
+                      step="0.1"
+                      min="0"
+                      value={formData.off_road_distance}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+                      placeholder="e.g., 120.5"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="off_road_percentage" className="block text-sm font-medium text-slate-700 mb-1">
+                      Percentage (%)
+                    </label>
+                    <input
+                      type="number"
+                      id="off_road_percentage"
+                      name="off_road_percentage"
+                      step="0.1"
+                      min="0"
+                      max="100"
+                      value={formData.off_road_percentage}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+                      placeholder="e.g., 34.4"
+                    />
+                  </div>
+                </div>
               </div>
 
-              {/* Ending Station */}
-              <div>
-                <label htmlFor="ending_station" className="block text-sm font-medium text-slate-700 mb-1">
-                  Ending Station
-                </label>
-                <input
-                  type="text"
-                  id="ending_station"
-                  name="ending_station"
-                  value={formData.ending_station}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
-                  placeholder="e.g., Winchester Station"
-                />
+              {/* Starting and Ending Stations - Grouped */}
+              <div className="space-y-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                <h4 className="text-sm font-semibold text-slate-700 mb-2">Train Stations</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="starting_station" className="block text-sm font-medium text-slate-700 mb-1">
+                      Start
+                    </label>
+                    <input
+                      type="text"
+                      id="starting_station"
+                      name="starting_station"
+                      value={formData.starting_station}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+                      placeholder="e.g., Winchester Station"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="ending_station" className="block text-sm font-medium text-slate-700 mb-1">
+                      Finish
+                    </label>
+                    <input
+                      type="text"
+                      id="ending_station"
+                      name="ending_station"
+                      value={formData.ending_station}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+                      placeholder="e.g., Winchester Station"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -624,6 +955,79 @@ export default function Routes({ books: booksProp = [], onNavigateToBook }) {
               />
             </div>
 
+            {/* Description */}
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium text-slate-700 mb-1">
+                Description
+              </label>
+              <textarea
+                id="description"
+                name="description"
+                rows="4"
+                value={formData.description}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+                placeholder="Detailed description of the route..."
+              />
+            </div>
+
+            {/* Strava Activities */}
+            <div>
+              <label htmlFor="strava_activities" className="block text-sm font-medium text-slate-700 mb-1">
+                Strava Activities
+              </label>
+              <textarea
+                id="strava_activities"
+                name="strava_activities"
+                rows="2"
+                value={formData.strava_activities}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+                placeholder="Comma-separated Strava activity URLs or IDs..."
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Enter URLs or IDs separated by commas (e.g., https://www.strava.com/activities/123456789, https://www.strava.com/activities/987654321)
+              </p>
+            </div>
+
+            {/* Google MyMap */}
+            <div>
+              <label htmlFor="google_mymap_url" className="block text-sm font-medium text-slate-700 mb-1">
+                Google MyMap URL
+              </label>
+              <input
+                type="text"
+                id="google_mymap_url"
+                name="google_mymap_url"
+                value={formData.google_mymap_url}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+                placeholder="https://www.google.com/maps/d/viewer?mid=..."
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Tip: Share your map with "Anyone with the link" in Google MyMaps so users can copy it to their own maps
+              </p>
+            </div>
+
+            {/* Komoot Collections */}
+            <div>
+              <label htmlFor="komoot_collections" className="block text-sm font-medium text-slate-700 mb-1">
+                Komoot Collections
+              </label>
+              <textarea
+                id="komoot_collections"
+                name="komoot_collections"
+                rows="2"
+                value={formData.komoot_collections}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+                placeholder="Comma-separated Komoot collection URLs or IDs..."
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Enter URLs or IDs separated by commas for different route schedules
+              </p>
+            </div>
+
             {/* Bike Choice */}
             <div>
               <label htmlFor="bike_choice" className="block text-sm font-medium text-slate-700 mb-1">
@@ -638,6 +1042,7 @@ export default function Routes({ books: booksProp = [], onNavigateToBook }) {
               >
                 <option value="">Select bike type</option>
                 <option value="MTB">MTB</option>
+                <option value="MTB/Gravel">MTB/Gravel</option>
                 <option value="Gravel">Gravel</option>
                 <option value="Endurance">Endurance</option>
                 <option value="Road">Road</option>
@@ -670,6 +1075,225 @@ export default function Routes({ books: booksProp = [], onNavigateToBook }) {
         </div>
       )}
 
+      {/* Import Route Modal */}
+      {isAdmin && showImportModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-200">
+              <h2 className="text-2xl font-semibold text-slate-900">Import Route</h2>
+              <button
+                onClick={() => {
+                  setShowImportModal(false);
+                  setImportError("");
+                }}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Source Selection */}
+            <div className="p-6 border-b border-slate-200 space-y-4">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleImportSourceChange("strava")}
+                  className={`px-4 py-2 rounded-lg transition-colors ${
+                    importSource === "strava"
+                      ? "bg-orange-600 text-white"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  Strava
+                </button>
+                <button
+                  onClick={() => handleImportSourceChange("komoot")}
+                  className={`px-4 py-2 rounded-lg transition-colors ${
+                    importSource === "komoot"
+                      ? "bg-green-600 text-white"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  Komoot
+                </button>
+              </div>
+              
+              {/* Direct URL Import for Strava */}
+              {importSource === "strava" && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Or import directly from a Strava activity URL:
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      id="strava_url"
+                      placeholder="https://www.strava.com/activities/123456789"
+                      className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      onKeyDown={async (e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          const url = e.target.value.trim();
+                          if (url) {
+                            // Extract activity ID from URL
+                            const match = url.match(/activities\/(\d+)/);
+                            if (match) {
+                              const activityId = match[1];
+                              // Create a mock activity object
+                              const mockActivity = {
+                                id: activityId,
+                                name: `Strava Activity ${activityId}`,
+                                distance: null,
+                                total_elevation_gain: null,
+                                type: "Ride",
+                              };
+                              await handleImportFromStrava(mockActivity);
+                            } else {
+                              setImportError("Invalid Strava activity URL. Please use format: https://www.strava.com/activities/123456789");
+                            }
+                          }
+                        }
+                      }}
+                    />
+                    <button
+                      onClick={async (e) => {
+                        const input = document.getElementById("strava_url");
+                        const url = input.value.trim();
+                        if (url) {
+                          const match = url.match(/activities\/(\d+)/);
+                          if (match) {
+                            const activityId = match[1];
+                            const mockActivity = {
+                              id: activityId,
+                              name: `Strava Activity ${activityId}`,
+                              distance: null,
+                              total_elevation_gain: null,
+                              type: "Ride",
+                            };
+                            await handleImportFromStrava(mockActivity);
+                          } else {
+                            setImportError("Invalid Strava activity URL. Please use format: https://www.strava.com/activities/123456789");
+                          }
+                        }
+                      }}
+                      className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                    >
+                      Import
+                    </button>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Paste a Strava activity URL (e.g., from a friend's shared route)
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {importError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-800">
+                  {importError}
+                </div>
+              )}
+
+              {importLoading ? (
+                <div className="text-center py-8 text-slate-600">Loading...</div>
+              ) : importSource === "strava" ? (
+                stravaActivities.length === 0 ? (
+                  <div className="text-center py-8 text-slate-600">No Strava activities found.</div>
+                ) : (
+                  <div className="space-y-3">
+                    {stravaActivities.map((activity) => (
+                      <div
+                        key={activity.id}
+                        className="border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-slate-900 mb-2">{activity.name}</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-slate-600">
+                              <div>
+                                <span className="font-medium">Distance:</span>{" "}
+                                {activity.distance ? `${(activity.distance / 1000).toFixed(1)} km` : "N/A"}
+                              </div>
+                              {activity.total_elevation_gain && (
+                                <div>
+                                  <span className="font-medium">Elevation:</span> {activity.total_elevation_gain} m
+                                </div>
+                              )}
+                              <div>
+                                <span className="font-medium">Type:</span> {activity.type}
+                              </div>
+                              <div>
+                                <span className="font-medium">Date:</span>{" "}
+                                {new Date(activity.start_date_local).toLocaleDateString()}
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleImportFromStrava(activity)}
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                          >
+                            Import
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : (
+                komootTours.length === 0 ? (
+                  <div className="text-center py-8 text-slate-600">No Komoot tours found.</div>
+                ) : (
+                  <div className="space-y-3">
+                    {komootTours.map((tour) => (
+                      <div
+                        key={tour.id}
+                        className="border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-slate-900 mb-2">{tour.name}</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-slate-600">
+                              {tour.distance && (
+                                <div>
+                                  <span className="font-medium">Distance:</span> {formatDistance(tour.distance)}
+                                </div>
+                              )}
+                              {tour.elevation_gain && (
+                                <div>
+                                  <span className="font-medium">Elevation:</span> {formatElevation(tour.elevation_gain)}
+                                </div>
+                              )}
+                              {tour.type && (
+                                <div>
+                                  <span className="font-medium">Type:</span> {tour.type}
+                                </div>
+                              )}
+                            </div>
+                            {tour.description && (
+                              <p className="text-sm text-slate-600 mt-2 line-clamp-2">{tour.description}</p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => handleImportFromKomoot(tour)}
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                          >
+                            Import
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Routes List */}
       <div className="bg-white rounded-xl p-6 shadow-lg border border-slate-200">
         <h3 className="text-xl font-semibold text-slate-900 mb-4">
@@ -691,37 +1315,44 @@ export default function Routes({ books: booksProp = [], onNavigateToBook }) {
             {routes.map((route) => (
               <div
                 key={route.id}
-                className="border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                className="border border-slate-200 rounded-lg overflow-hidden"
               >
+                <div
+                  onClick={() => setSelectedRoute(selectedRoute?.id === route.id ? null : route)}
+                  className="p-4 hover:shadow-md transition-shadow cursor-pointer"
+                >
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between mb-2">
                   <h4 className="text-lg font-semibold text-slate-900">
                     {route.title}
                   </h4>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleEdit(route)}
-                      className="px-3 py-1.5 text-sm bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(route.id, route.title)}
-                      disabled={loading}
-                      className="px-3 py-1.5 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Delete
-                    </button>
-                  </div>
+                  {isAdmin && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEdit(route);
+                        }}
+                        className="px-3 py-1.5 text-sm bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(route.id, route.title);
+                        }}
+                        disabled={loading}
+                        className="px-3 py-1.5 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="flex flex-col md:flex-row gap-4 items-start">
                   <div className="flex-1">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm text-slate-600">
-                      {route.difficulty && (
-                        <div>
-                          <span className="font-medium">Difficulty:</span> {route.difficulty}
-                        </div>
-                      )}
                       {route.distance && (
                         <div>
                           <span className="font-medium">Distance:</span> {formatDistance(route.distance)}
@@ -730,6 +1361,25 @@ export default function Routes({ books: booksProp = [], onNavigateToBook }) {
                       {route.ascent && (
                         <div>
                           <span className="font-medium">Ascent:</span> {formatElevation(route.ascent)}
+                        </div>
+                      )}
+                      {route.off_road_distance && (
+                        <div>
+                          <span className="font-medium">Off-road:</span> {formatDistance(route.off_road_distance)}
+                        </div>
+                      )}
+                      {route.off_road_percentage !== null && route.off_road_percentage !== undefined && (
+                        <div>
+                          <span className="font-medium">% Off-road:</span> {route.off_road_percentage.toFixed(1)}%
+                        </div>
+                      )}
+                      {route.grade && (
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">Grade:</span>
+                          <div className="flex items-center gap-1.5">
+                            {getGradeIndicator(route.grade)}
+                            <span className="capitalize">{route.grade}</span>
+                          </div>
                         </div>
                       )}
                       {route.country && (
@@ -754,15 +1404,37 @@ export default function Routes({ books: booksProp = [], onNavigateToBook }) {
                       )}
                       {route.gpx_url && (
                         <div>
-                          <a
-                            href={route.gpx_url.startsWith('http') ? route.gpx_url : `${API_BASE}${route.gpx_url}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sky-600 hover:text-sky-700"
-                            download
-                          >
-                            Download GPX →
-                          </a>
+                          {route.guidebook_id && !isAdmin && !purchasedBookIds.has(route.guidebook_id) ? (
+                            <div className="inline-flex items-center px-3 py-1.5 text-sm bg-slate-300 text-slate-600 rounded-lg cursor-not-allowed">
+                              <svg className="mr-1.5 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                              </svg>
+                              GPX Locked
+                            </div>
+                          ) : (
+                            <a
+                              href={route.gpx_url.startsWith('http') ? route.gpx_url : `${API_BASE}${route.gpx_url}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              download
+                              className="inline-flex items-center px-3 py-1.5 text-sm bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
+                            >
+                              Download GPX
+                              <svg
+                                className="ml-1.5 w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                                />
+                              </svg>
+                            </a>
+                          )}
                         </div>
                       )}
                     </div>
@@ -847,6 +1519,19 @@ export default function Routes({ books: booksProp = [], onNavigateToBook }) {
                     </div>
                   )}
                 </div>
+                </div>
+                
+                {/* Expanded Route Details */}
+                {selectedRoute?.id === route.id && (
+                  <RouteDetailPanel
+                    route={selectedRoute}
+                    onClose={() => setSelectedRoute(null)}
+                    isAdmin={isAdmin}
+                    onEdit={handleEdit}
+                    inline={true}
+                    currentUser={currentUser}
+                  />
+                )}
               </div>
             ))}
           </div>
