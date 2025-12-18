@@ -56,10 +56,11 @@ function parseGPX(gpxText) {
   return coordinates;
 }
 
-export default function RouteMap({ gpxUrl, routeTitle }) {
+export default function RouteMap({ gpxUrl, routeTitle, interactive = false, height = "128px", photos = [] }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const markersRef = useRef([]);
+  const photoMarkersRef = useRef([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -81,6 +82,15 @@ export default function RouteMap({ gpxUrl, routeTitle }) {
         center: [0, 0],
         zoom: 2,
       });
+      
+      // Add navigation controls for interactive maps
+      if (interactive) {
+        map.current.once('load', () => {
+          if (map.current) {
+            map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+          }
+        });
+      }
     }
 
     // Cleanup on unmount
@@ -90,7 +100,7 @@ export default function RouteMap({ gpxUrl, routeTitle }) {
         map.current = null;
       }
     };
-  }, []);
+  }, [interactive]);
 
   // Load GPX when URL changes
   useEffect(() => {
@@ -122,13 +132,13 @@ export default function RouteMap({ gpxUrl, routeTitle }) {
           throw new Error("No coordinates found in GPX file");
         }
 
-        // Calculate bounds
-        const lngs = coordinates.map((coord) => coord[0]);
-        const lats = coordinates.map((coord) => coord[1]);
-        const bounds = [
-          [Math.min(...lngs), Math.min(...lats)],
-          [Math.max(...lngs), Math.max(...lats)],
-        ];
+          // Calculate bounds
+          const lngs = coordinates.map((coord) => coord[0]);
+          const lats = coordinates.map((coord) => coord[1]);
+          let bounds = [
+            [Math.min(...lngs), Math.min(...lats)],
+            [Math.max(...lngs), Math.max(...lats)],
+          ];
 
         // Function to add route to map
         const addRouteToMap = () => {
@@ -185,8 +195,76 @@ export default function RouteMap({ gpxUrl, routeTitle }) {
               .addTo(map.current);
           }
 
-          // Fit map to route bounds
-          map.current.fitBounds(bounds, {
+          // Add photo markers for photos with GPS coordinates
+          photoMarkersRef.current.forEach((marker) => marker.remove());
+          photoMarkersRef.current = [];
+          
+          const photoLngs = [];
+          const photoLats = [];
+          
+          photos.forEach((photo) => {
+            if (photo.latitude && photo.longitude) {
+              photoLngs.push(photo.longitude);
+              photoLats.push(photo.latitude);
+              
+              // Create a custom marker element for photos
+              const el = document.createElement('div');
+              el.className = 'photo-marker';
+              el.style.width = '32px';
+              el.style.height = '32px';
+              el.style.borderRadius = '50%';
+              el.style.backgroundImage = `url(${photo.thumbnail_url || photo.photo_url})`;
+              el.style.backgroundSize = 'cover';
+              el.style.backgroundPosition = 'center';
+              el.style.border = '2px solid white';
+              el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+              el.style.cursor = 'pointer';
+              
+              const marker = new mapboxgl.Marker(el)
+                .setLngLat([photo.longitude, photo.latitude])
+                .addTo(map.current);
+              
+              // Create popup with photo thumbnail
+              const popupContent = document.createElement('div');
+              popupContent.style.textAlign = 'center';
+              popupContent.style.maxWidth = '200px';
+              
+              const img = document.createElement('img');
+              img.src = photo.thumbnail_url || photo.photo_url;
+              img.style.width = '100%';
+              img.style.height = 'auto';
+              img.style.borderRadius = '4px';
+              img.style.marginBottom = '4px';
+              popupContent.appendChild(img);
+              
+              if (photo.caption) {
+                const caption = document.createElement('div');
+                caption.textContent = photo.caption;
+                caption.style.fontSize = '12px';
+                caption.style.color = '#666';
+                popupContent.appendChild(caption);
+              }
+              
+              const popup = new mapboxgl.Popup({ offset: 25 })
+                .setDOMContent(popupContent);
+              
+              marker.setPopup(popup);
+              photoMarkersRef.current.push(marker);
+            }
+          });
+
+          // Fit map to route bounds (expanded to include photo markers if they exist)
+          let finalBounds = bounds;
+          if (photoLngs.length > 0 && photoLats.length > 0) {
+            const allLngs = [...lngs, ...photoLngs];
+            const allLats = [...lats, ...photoLats];
+            finalBounds = [
+              [Math.min(...allLngs), Math.min(...allLats)],
+              [Math.max(...allLngs), Math.max(...allLats)],
+            ];
+          }
+          
+          map.current.fitBounds(finalBounds, {
             padding: 50,
             maxZoom: 14,
           });
@@ -221,8 +299,10 @@ export default function RouteMap({ gpxUrl, routeTitle }) {
       // Remove markers
       markersRef.current.forEach((marker) => marker.remove());
       markersRef.current = [];
+      photoMarkersRef.current.forEach((marker) => marker.remove());
+      photoMarkersRef.current = [];
     };
-  }, [gpxUrl, routeTitle]);
+  }, [gpxUrl, routeTitle, photos]);
 
   if (!MAPBOX_TOKEN) {
     return (
@@ -258,9 +338,11 @@ export default function RouteMap({ gpxUrl, routeTitle }) {
       )}
       <div
         ref={mapContainer}
-        className="w-full h-32 rounded-lg overflow-hidden"
-        style={{ minHeight: "128px", height: "128px" }}
+        className="w-full rounded-lg overflow-hidden"
+        style={{ minHeight: height, height: height }}
       />
     </div>
   );
 }
+
+
