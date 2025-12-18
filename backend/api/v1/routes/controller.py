@@ -13,7 +13,7 @@ from fastapi import HTTPException, UploadFile
 from PIL import Image
 
 from .db import get_connection
-from .models import Route, CreateRoute, UpdateRoute
+from .models import Route, CreateRoute, UpdateRoute, RoutePhoto, CreateRoutePhoto
 
 # Load environment variables
 # Load from backend/.env file (same directory as server.py)
@@ -27,7 +27,6 @@ def get_all_routes(
     guidebook_id: Optional[int] = None,
     country: Optional[str] = None,
     county: Optional[str] = None,
-    difficulty: Optional[str] = None,
     include_deleted: bool = False,
 ) -> List[Route]:
     """
@@ -37,7 +36,6 @@ def get_all_routes(
         guidebook_id: Filter by guidebook ID (None for routes not in guidebooks)
         country: Filter by country
         county: Filter by county
-        difficulty: Filter by difficulty
         include_deleted: If True, include routes where live = False
         
     Returns:
@@ -47,9 +45,11 @@ def get_all_routes(
         HTTPException: If database query fails
     """
     query = """
-        SELECT id, title, gpx_url, thumbnail_url, difficulty, country, county, distance,
+        SELECT id, title, gpx_url, thumbnail_url, country, county, distance,
                ascent, descent, starting_station, ending_station, getting_there,
-               bike_choice, guidebook_id, created_at, updated_at
+               bike_choice, guidebook_id, min_time, max_time, off_road_distance, off_road_percentage, grade,
+               description, strava_activities, google_mymap_url, komoot_collections,
+               created_at, updated_at
         FROM routes
         WHERE 1=1
     """
@@ -71,10 +71,6 @@ def get_all_routes(
         query += " AND county = %s"
         params.append(county)
     
-    if difficulty:
-        query += " AND difficulty = %s"
-        params.append(difficulty)
-    
     query += " ORDER BY title;"
     
     with get_connection() as conn:
@@ -91,19 +87,27 @@ def get_all_routes(
             title=row[1],
             gpx_url=row[2],
             thumbnail_url=row[3],
-            difficulty=row[4],
-            country=row[5],
-            county=row[6],
-            distance=float(row[7]) if row[7] is not None else None,
-            ascent=row[8],
-            descent=row[9],
-            starting_station=row[10],
-            ending_station=row[11],
-            getting_there=row[12],
-            bike_choice=row[13],
-            guidebook_id=row[14],
-            created_at=row[15].isoformat() if row[15] else None,
-            updated_at=row[16].isoformat() if row[16] else None,
+            country=row[4],
+            county=row[5],
+            distance=float(row[6]) if row[6] is not None else None,
+            ascent=row[7],
+            descent=row[8],
+            starting_station=row[9],
+            ending_station=row[10],
+            getting_there=row[11],
+            bike_choice=row[12],
+            guidebook_id=row[13],
+            min_time=float(row[14]) if row[14] is not None else None,
+            max_time=float(row[15]) if row[15] is not None else None,
+            off_road_distance=float(row[16]) if row[16] is not None else None,
+            off_road_percentage=float(row[17]) if row[17] is not None else None,
+            grade=row[18],
+            description=row[19],
+            strava_activities=row[20],
+            google_mymap_url=row[21],
+            komoot_collections=row[22],
+            created_at=row[23].isoformat() if row[23] else None,
+            updated_at=row[24].isoformat() if row[24] else None,
         )
         for row in rows
     ]
@@ -124,9 +128,11 @@ def get_route_by_id(route_id: int, include_deleted: bool = True) -> Route:
         HTTPException: If route not found or database query fails
     """
     query = """
-        SELECT id, title, gpx_url, thumbnail_url, difficulty, country, county, distance,
+        SELECT id, title, gpx_url, thumbnail_url, country, county, distance,
                ascent, descent, starting_station, ending_station, getting_there,
-               bike_choice, guidebook_id, created_at, updated_at
+               bike_choice, guidebook_id, min_time, max_time, off_road_distance, off_road_percentage, grade,
+               description, strava_activities, google_mymap_url, komoot_collections,
+               created_at, updated_at
         FROM routes
         WHERE id = %s
     """
@@ -155,19 +161,27 @@ def get_route_by_id(route_id: int, include_deleted: bool = True) -> Route:
         title=row[1],
         gpx_url=row[2],
         thumbnail_url=row[3],
-        difficulty=row[4],
-        country=row[5],
-        county=row[6],
-        distance=float(row[7]) if row[7] is not None else None,
-        ascent=row[8],
-        descent=row[9],
-        starting_station=row[10],
-        ending_station=row[11],
-        getting_there=row[12],
-        bike_choice=row[13],
-        guidebook_id=row[14],
-        created_at=row[15].isoformat() if row[15] else None,
-        updated_at=row[16].isoformat() if row[16] else None,
+        country=row[4],
+        county=row[5],
+        distance=float(row[6]) if row[6] is not None else None,
+        ascent=row[7],
+        descent=row[8],
+        starting_station=row[9],
+        ending_station=row[10],
+        getting_there=row[11],
+        bike_choice=row[12],
+        guidebook_id=row[13],
+            min_time=float(row[14]) if row[14] is not None else None,
+            max_time=float(row[15]) if row[15] is not None else None,
+            off_road_distance=float(row[16]) if row[16] is not None else None,
+            off_road_percentage=float(row[17]) if row[17] is not None else None,
+            grade=row[18],
+            description=row[19],
+            strava_activities=row[20],
+            google_mymap_url=row[21],
+            komoot_collections=row[22],
+            created_at=row[23].isoformat() if row[23] else None,
+            updated_at=row[24].isoformat() if row[24] else None,
     )
 
 
@@ -186,21 +200,23 @@ def create_route(route_data: CreateRoute) -> Route:
     """
     query = """
         INSERT INTO routes (
-            title, gpx_url, thumbnail_url, difficulty, country, county, distance,
+            title, gpx_url, thumbnail_url, country, county, distance,
             ascent, descent, starting_station, ending_station, getting_there,
-            bike_choice, guidebook_id
+            bike_choice, guidebook_id, min_time, max_time, off_road_distance, off_road_percentage, grade,
+            description, strava_activities, google_mymap_url, komoot_collections
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        RETURNING id, title, gpx_url, thumbnail_url, difficulty, country, county, distance,
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING id, title, gpx_url, thumbnail_url, country, county, distance,
                   ascent, descent, starting_station, ending_station, getting_there,
-                  bike_choice, guidebook_id, created_at, updated_at;
+                  bike_choice, guidebook_id, min_time, max_time, off_road_distance, off_road_percentage, grade,
+                  description, strava_activities, google_mymap_url, komoot_collections,
+                  created_at, updated_at;
     """
     
     params = (
         route_data.title,
         route_data.gpx_url,
         None,  # thumbnail_url will be generated later if needed
-        route_data.difficulty,
         route_data.country,
         route_data.county,
         route_data.distance,
@@ -211,6 +227,15 @@ def create_route(route_data: CreateRoute) -> Route:
         route_data.getting_there,
         route_data.bike_choice,
         route_data.guidebook_id,
+        route_data.min_time,
+        route_data.max_time,
+        route_data.off_road_distance,
+        route_data.off_road_percentage,
+        route_data.grade,
+        route_data.description,
+        route_data.strava_activities,
+        route_data.google_mymap_url,
+        route_data.komoot_collections,
     )
     
     with get_connection() as conn:
@@ -228,30 +253,48 @@ def create_route(route_data: CreateRoute) -> Route:
         title=row[1],
         gpx_url=row[2],
         thumbnail_url=row[3],
-        difficulty=row[4],
-        country=row[5],
-        county=row[6],
-        distance=float(row[7]) if row[7] is not None else None,
-        ascent=row[8],
-        descent=row[9],
-        starting_station=row[10],
-        ending_station=row[11],
-        getting_there=row[12],
-        bike_choice=row[13],
-        guidebook_id=row[14],
-        created_at=row[15].isoformat() if row[15] else None,
-        updated_at=row[16].isoformat() if row[16] else None,
+        country=row[4],
+        county=row[5],
+        distance=float(row[6]) if row[6] is not None else None,
+        ascent=row[7],
+        descent=row[8],
+        starting_station=row[9],
+        ending_station=row[10],
+        getting_there=row[11],
+        bike_choice=row[12],
+        guidebook_id=row[13],
+            min_time=float(row[14]) if row[14] is not None else None,
+            max_time=float(row[15]) if row[15] is not None else None,
+            off_road_distance=float(row[16]) if row[16] is not None else None,
+            off_road_percentage=float(row[17]) if row[17] is not None else None,
+            grade=row[18],
+            description=row[19],
+            strava_activities=row[20],
+            google_mymap_url=row[21],
+            komoot_collections=row[22],
+            created_at=row[23].isoformat() if row[23] else None,
+            updated_at=row[24].isoformat() if row[24] else None,
     )
 
-    # Auto-generate thumbnail when a GPX file is provided
+    # Auto-generate thumbnail when a GPX file is provided (skip for external URLs)
     if new_route.gpx_url:
-        try:
-            generate_route_thumbnail(new_route.id, force_regenerate=True)
-            # Return the freshest data (with thumbnail_url) after generation
-            return get_route_by_id(new_route.id, include_deleted=True)
-        except Exception as exc:  # pragma: no cover - best-effort thumbnail creation
-            # Do not fail route creation if thumbnail generation fails
-            print(f"Warning: failed to generate thumbnail for route {new_route.id}: {exc}")
+        # Check if it's an external URL (not localhost or /static/)
+        gpx_url_clean = new_route.gpx_url.strip()
+        is_external = (
+            (gpx_url_clean.startswith("http://") or gpx_url_clean.startswith("https://"))
+            and "localhost" not in gpx_url_clean
+            and "127.0.0.1" not in gpx_url_clean
+        )
+        
+        if not is_external:
+            # Only generate thumbnail for local files
+            try:
+                generate_route_thumbnail(new_route.id, force_regenerate=True)
+                # Return the freshest data (with thumbnail_url) after generation
+                return get_route_by_id(new_route.id, include_deleted=True)
+            except Exception as exc:  # pragma: no cover - best-effort thumbnail creation
+                # Do not fail route creation if thumbnail generation fails
+                print(f"Warning: failed to generate thumbnail for route {new_route.id}: {exc}")
 
     return new_route
 
@@ -326,9 +369,6 @@ def update_route(route_id: int, route_data: UpdateRoute) -> Route:
     if route_data.thumbnail_url is not None:
         updates.append("thumbnail_url = %s")
         params.append(route_data.thumbnail_url)
-    if route_data.difficulty is not None:
-        updates.append("difficulty = %s")
-        params.append(route_data.difficulty)
     if route_data.country is not None:
         updates.append("country = %s")
         params.append(route_data.country)
@@ -359,6 +399,33 @@ def update_route(route_id: int, route_data: UpdateRoute) -> Route:
     if route_data.guidebook_id is not None:
         updates.append("guidebook_id = %s")
         params.append(route_data.guidebook_id)
+    if route_data.min_time is not None:
+        updates.append("min_time = %s")
+        params.append(route_data.min_time)
+    if route_data.max_time is not None:
+        updates.append("max_time = %s")
+        params.append(route_data.max_time)
+    if route_data.off_road_distance is not None:
+        updates.append("off_road_distance = %s")
+        params.append(route_data.off_road_distance)
+    if route_data.off_road_percentage is not None:
+        updates.append("off_road_percentage = %s")
+        params.append(route_data.off_road_percentage)
+    if route_data.grade is not None:
+        updates.append("grade = %s")
+        params.append(route_data.grade)
+    if route_data.description is not None:
+        updates.append("description = %s")
+        params.append(route_data.description)
+    if route_data.strava_activities is not None:
+        updates.append("strava_activities = %s")
+        params.append(route_data.strava_activities)
+    if route_data.google_mymap_url is not None:
+        updates.append("google_mymap_url = %s")
+        params.append(route_data.google_mymap_url)
+    if route_data.komoot_collections is not None:
+        updates.append("komoot_collections = %s")
+        params.append(route_data.komoot_collections)
     if route_data.live is not None:
         updates.append("live = %s")
         params.append(route_data.live)
@@ -375,9 +442,11 @@ def update_route(route_id: int, route_data: UpdateRoute) -> Route:
         UPDATE routes
         SET {', '.join(updates)}
         WHERE id = %s
-        RETURNING id, title, gpx_url, thumbnail_url, difficulty, country, county, distance,
+        RETURNING id, title, gpx_url, thumbnail_url, country, county, distance,
                   ascent, descent, starting_station, ending_station, getting_there,
-                  bike_choice, guidebook_id, created_at, updated_at;
+                  bike_choice, guidebook_id, min_time, max_time, off_road_distance, off_road_percentage, grade,
+                  description, strava_activities, google_mymap_url, komoot_collections,
+                  created_at, updated_at;
     """
     params.append(route_id)
     
@@ -396,28 +465,46 @@ def update_route(route_id: int, route_data: UpdateRoute) -> Route:
         title=row[1],
         gpx_url=row[2],
         thumbnail_url=row[3],
-        difficulty=row[4],
-        country=row[5],
-        county=row[6],
-        distance=float(row[7]) if row[7] is not None else None,
-        ascent=row[8],
-        descent=row[9],
-        starting_station=row[10],
-        ending_station=row[11],
-        getting_there=row[12],
-        bike_choice=row[13],
-        guidebook_id=row[14],
-        created_at=row[15].isoformat() if row[15] else None,
-        updated_at=row[16].isoformat() if row[16] else None,
+        country=row[4],
+        county=row[5],
+        distance=float(row[6]) if row[6] is not None else None,
+        ascent=row[7],
+        descent=row[8],
+        starting_station=row[9],
+        ending_station=row[10],
+        getting_there=row[11],
+        bike_choice=row[12],
+        guidebook_id=row[13],
+            min_time=float(row[14]) if row[14] is not None else None,
+            max_time=float(row[15]) if row[15] is not None else None,
+            off_road_distance=float(row[16]) if row[16] is not None else None,
+            off_road_percentage=float(row[17]) if row[17] is not None else None,
+            grade=row[18],
+            description=row[19],
+            strava_activities=row[20],
+            google_mymap_url=row[21],
+            komoot_collections=row[22],
+            created_at=row[23].isoformat() if row[23] else None,
+            updated_at=row[24].isoformat() if row[24] else None,
     )
 
-    # If GPX changed, regenerate thumbnail (best-effort)
+    # If GPX changed, regenerate thumbnail (best-effort, skip for external URLs)
     if gpx_changed and updated_route.gpx_url:
-        try:
-            generate_route_thumbnail(route_id, force_regenerate=True)
-            return get_route_by_id(route_id, include_deleted=True)
-        except Exception as exc:  # pragma: no cover
-            print(f"Warning: failed to regenerate thumbnail for route {route_id}: {exc}")
+        # Check if it's an external URL (not localhost or /static/)
+        gpx_url_clean = updated_route.gpx_url.strip()
+        is_external = (
+            (gpx_url_clean.startswith("http://") or gpx_url_clean.startswith("https://"))
+            and "localhost" not in gpx_url_clean
+            and "127.0.0.1" not in gpx_url_clean
+        )
+        
+        if not is_external:
+            # Only generate thumbnail for local files
+            try:
+                generate_route_thumbnail(route_id, force_regenerate=True)
+                return get_route_by_id(route_id, include_deleted=True)
+            except Exception as exc:  # pragma: no cover
+                print(f"Warning: failed to regenerate thumbnail for route {route_id}: {exc}")
 
     return updated_route
 
