@@ -20,6 +20,7 @@ from api.v1.komoot.router import router as komoot_router
 from api.v1.instagram.router import router as instagram_router
 from api.v1.routes.router import router as routes_router
 from api.v1.users.router import router as users_router
+from api.v1.webhooks.router import router as webhooks_router
 
 # Use uvicorn's logger so messages appear with the server output.
 logger = logging.getLogger("uvicorn.error")
@@ -48,6 +49,7 @@ app.include_router(komoot_router, prefix="/api/v1/komoot")
 app.include_router(instagram_router, prefix="/api/v1/instagram")
 app.include_router(routes_router, prefix="/api/v1/routes")
 app.include_router(users_router)  # Router already has prefix="/api/v1/users"
+app.include_router(webhooks_router, prefix="/api/v1/webhooks")
 
 
 if __name__ == "__main__":

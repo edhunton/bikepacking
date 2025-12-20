@@ -12,3 +12,4 @@ polyline
 PyJWT
 passlib[bcrypt]
 email-validator
+squareup
