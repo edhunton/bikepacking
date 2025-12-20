@@ -63,6 +63,59 @@ export default function Routes({ books: booksProp = [], onNavigateToBook, curren
     loadBooks();
   }, [booksProp]);
 
+  // Fetch purchased books to populate purchasedBookIds
+  useEffect(() => {
+    const fetchPurchasedBooks = async () => {
+      if (!currentUser?.id) {
+        setPurchasedBookIds(new Set());
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          setPurchasedBookIds(new Set());
+          return;
+        }
+
+        // Get all unique guidebook_ids from routes
+        const guidebookIds = [...new Set(routes.map(r => r.guidebook_id).filter(Boolean))];
+        if (guidebookIds.length === 0) {
+          return;
+        }
+
+        // Check purchase status for each guidebook
+        const purchasedSet = new Set();
+        await Promise.all(
+          guidebookIds.map(async (bookId) => {
+            try {
+              const res = await fetch(`${API_BASE}/api/v1/books/${bookId}/purchased`, {
+                headers: {
+                  'Authorization': `Bearer ${token}`
+                }
+              });
+              if (res.ok) {
+                const data = await res.json();
+                if (data.purchased === true) {
+                  purchasedSet.add(bookId);
+                }
+              }
+            } catch (err) {
+              console.error(`Error checking purchase for book ${bookId}:`, err);
+            }
+          })
+        );
+
+        setPurchasedBookIds(purchasedSet);
+      } catch (error) {
+        console.error('Error fetching purchased books:', error);
+        setPurchasedBookIds(new Set());
+      }
+    };
+
+    fetchPurchasedBooks();
+  }, [currentUser?.id, routes]);
+
   // Load routes
   useEffect(() => {
     async function loadRoutes() {
@@ -169,6 +222,16 @@ export default function Routes({ books: booksProp = [], onNavigateToBook, curren
     setShowForm(true);
     setError("");
     setSuccess("");
+    
+    // Scroll to the form at the top
+    setTimeout(() => {
+      const formElement = document.getElementById('route-edit-form');
+      if (formElement) {
+        formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }, 0);
   };
 
   const handleCancel = () => {
@@ -622,7 +685,7 @@ export default function Routes({ books: booksProp = [], onNavigateToBook, curren
       </div>
 
       {isAdmin && showForm && (
-        <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg border border-slate-200">
+        <div id="route-edit-form" className="bg-white rounded-xl p-4 sm:p-6 shadow-lg border border-slate-200">
           <h3 className="text-xl font-semibold text-slate-900 mb-4">
             {editingRouteId ? "Edit Route" : "Add New Route"}
           </h3>
@@ -658,42 +721,6 @@ export default function Routes({ books: booksProp = [], onNavigateToBook, curren
                 />
               </div>
 
-              {/* GPX File Upload */}
-              <div className="md:col-span-2">
-                <label htmlFor="gpx_file" className="block text-sm font-medium text-slate-700 mb-1">
-                  GPX File
-                </label>
-                <input
-                  type="file"
-                  id="gpx_file"
-                  name="gpx_file"
-                  accept=".gpx"
-                  onChange={handleFileChange}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"
-                />
-                {formData.gpx_file && (
-                  <p className="mt-1 text-sm text-slate-600">
-                    Selected: {formData.gpx_file.name}
-                  </p>
-                )}
-              </div>
-
-              {/* GPX URL (alternative) */}
-              <div className="md:col-span-2">
-                <label htmlFor="gpx_url" className="block text-sm font-medium text-slate-700 mb-1">
-                  Or GPX File URL (if not uploading)
-                </label>
-                <input
-                  type="text"
-                  id="gpx_url"
-                  name="gpx_url"
-                  value={formData.gpx_url}
-                  onChange={handleInputChange}
-                  disabled={!!formData.gpx_file}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
-                  placeholder="http://localhost:5173/static/gpx/route.gpx or https://example.com/route.gpx"
-                />
-              </div>
 
               {/* Grade */}
               <div>
@@ -713,6 +740,28 @@ export default function Routes({ books: booksProp = [], onNavigateToBook, curren
                   <option value="difficult">Difficult</option>
                   <option value="hard">Hard</option>
                   <option value="very hard">Very Hard</option>
+                </select>
+              </div>
+
+              {/* Bike Choice */}
+              <div>
+                <label htmlFor="bike_choice" className="block text-sm font-medium text-slate-700 mb-1">
+                  Bike Choice
+                </label>
+                <select
+                  id="bike_choice"
+                  name="bike_choice"
+                  value={formData.bike_choice}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+                >
+                  <option value="">Select bike type</option>
+                  <option value="mountain">Mountain Bike</option>
+                  <option value="gravel">Gravel Bike</option>
+                  <option value="road">Road Bike</option>
+                  <option value="hybrid">Hybrid Bike</option>
+                  <option value="ebike">E-Bike</option>
+                  <option value="any">Any</option>
                 </select>
               </div>
 
@@ -971,82 +1020,104 @@ export default function Routes({ books: booksProp = [], onNavigateToBook, curren
               />
             </div>
 
-            {/* Strava Activities */}
-            <div>
-              <label htmlFor="strava_activities" className="block text-sm font-medium text-slate-700 mb-1">
-                Strava Activities
-              </label>
-              <textarea
-                id="strava_activities"
-                name="strava_activities"
-                rows="2"
-                value={formData.strava_activities}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
-                placeholder="Comma-separated Strava activity URLs or IDs..."
-              />
-              <p className="mt-1 text-xs text-slate-500">
-                Enter URLs or IDs separated by commas (e.g., https://www.strava.com/activities/123456789, https://www.strava.com/activities/987654321)
-              </p>
-            </div>
+            {/* Route Links - GPX, My Maps, Strava, Komoot */}
+            <div className="space-y-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+              <h4 className="text-sm font-semibold text-slate-700 mb-3">Route Links</h4>
+              <div className="space-y-4">
+                {/* GPX File Upload */}
+                <div>
+                  <label htmlFor="gpx_file" className="block text-sm font-medium text-slate-700 mb-1">
+                    GPX File
+                  </label>
+                  <input
+                    type="file"
+                    id="gpx_file"
+                    name="gpx_file"
+                    accept=".gpx"
+                    onChange={handleFileChange}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"
+                  />
+                  {formData.gpx_file && (
+                    <p className="mt-1 text-sm text-slate-600">
+                      Selected: {formData.gpx_file.name}
+                    </p>
+                  )}
+                </div>
 
-            {/* Google MyMap */}
-            <div>
-              <label htmlFor="google_mymap_url" className="block text-sm font-medium text-slate-700 mb-1">
-                Google MyMap URL
-              </label>
-              <input
-                type="text"
-                id="google_mymap_url"
-                name="google_mymap_url"
-                value={formData.google_mymap_url}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
-                placeholder="https://www.google.com/maps/d/viewer?mid=..."
-              />
-              <p className="mt-1 text-xs text-slate-500">
-                Tip: Share your map with "Anyone with the link" in Google MyMaps so users can copy it to their own maps
-              </p>
-            </div>
+                {/* GPX URL (alternative) */}
+                <div>
+                  <label htmlFor="gpx_url" className="block text-sm font-medium text-slate-700 mb-1">
+                    Or GPX File URL (if not uploading)
+                  </label>
+                  <input
+                    type="text"
+                    id="gpx_url"
+                    name="gpx_url"
+                    value={formData.gpx_url}
+                    onChange={handleInputChange}
+                    disabled={!!formData.gpx_file}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
+                    placeholder="http://localhost:5173/static/gpx/route.gpx or https://example.com/route.gpx"
+                  />
+                </div>
 
-            {/* Komoot Collections */}
-            <div>
-              <label htmlFor="komoot_collections" className="block text-sm font-medium text-slate-700 mb-1">
-                Komoot Collections
-              </label>
-              <textarea
-                id="komoot_collections"
-                name="komoot_collections"
-                rows="2"
-                value={formData.komoot_collections}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
-                placeholder="Comma-separated Komoot collection URLs or IDs..."
-              />
-              <p className="mt-1 text-xs text-slate-500">
-                Enter URLs or IDs separated by commas for different route schedules
-              </p>
-            </div>
+                {/* Google MyMap */}
+                <div>
+                  <label htmlFor="google_mymap_url" className="block text-sm font-medium text-slate-700 mb-1">
+                    Google MyMap URL
+                  </label>
+                  <input
+                    type="text"
+                    id="google_mymap_url"
+                    name="google_mymap_url"
+                    value={formData.google_mymap_url}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    placeholder="https://www.google.com/maps/d/viewer?mid=..."
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    Tip: Share your map with "Anyone with the link" in Google MyMaps so users can copy it to their own maps
+                  </p>
+                </div>
 
-            {/* Bike Choice */}
-            <div>
-              <label htmlFor="bike_choice" className="block text-sm font-medium text-slate-700 mb-1">
-                Bike Choice
-              </label>
-              <select
-                id="bike_choice"
-                name="bike_choice"
-                value={formData.bike_choice}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
-              >
-                <option value="">Select bike type</option>
-                <option value="MTB">MTB</option>
-                <option value="MTB/Gravel">MTB/Gravel</option>
-                <option value="Gravel">Gravel</option>
-                <option value="Endurance">Endurance</option>
-                <option value="Road">Road</option>
-              </select>
+                {/* Strava Activities */}
+                <div>
+                  <label htmlFor="strava_activities" className="block text-sm font-medium text-slate-700 mb-1">
+                    Strava Activities
+                  </label>
+                  <textarea
+                    id="strava_activities"
+                    name="strava_activities"
+                    rows="2"
+                    value={formData.strava_activities}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    placeholder="Comma-separated Strava activity URLs or IDs..."
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    Enter URLs or IDs separated by commas (e.g., https://www.strava.com/activities/123456789, https://www.strava.com/activities/987654321)
+                  </p>
+                </div>
+
+                {/* Komoot Collections */}
+                <div>
+                  <label htmlFor="komoot_collections" className="block text-sm font-medium text-slate-700 mb-1">
+                    Komoot Collections
+                  </label>
+                  <textarea
+                    id="komoot_collections"
+                    name="komoot_collections"
+                    rows="2"
+                    value={formData.komoot_collections}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    placeholder="Comma-separated Komoot collection URLs or IDs..."
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    Enter URLs or IDs separated by commas for different route schedules
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div className="flex gap-3">
@@ -1400,41 +1471,6 @@ export default function Routes({ books: booksProp = [], onNavigateToBook, curren
                       {route.ending_station && (
                         <div>
                           <span className="font-medium">End:</span> {route.ending_station}
-                        </div>
-                      )}
-                      {route.gpx_url && (
-                        <div>
-                          {route.guidebook_id && !isAdmin && !purchasedBookIds.has(route.guidebook_id) ? (
-                            <div className="inline-flex items-center px-3 py-1.5 text-sm bg-slate-300 text-slate-600 rounded-lg cursor-not-allowed">
-                              <svg className="mr-1.5 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                              </svg>
-                              GPX Locked
-                            </div>
-                          ) : (
-                            <a
-                              href={route.gpx_url.startsWith('http') ? route.gpx_url : `${API_BASE}${route.gpx_url}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              download
-                              className="inline-flex items-center px-3 py-1.5 text-sm bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
-                            >
-                              Download GPX
-                              <svg
-                                className="ml-1.5 w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                                />
-                              </svg>
-                            </a>
-                          )}
                         </div>
                       )}
                     </div>

@@ -28,6 +28,7 @@ export default function RouteDetailPanel({ route, onClose, isAdmin, onEdit, inli
   }, [route?.id]);
 
   // Check if user has purchased the guidebook
+  // Note: Even admins must purchase the book to access links
   useEffect(() => {
     const checkPurchaseStatus = async () => {
       // If no guidebook associated, always allow access
@@ -36,13 +37,7 @@ export default function RouteDetailPanel({ route, onClose, isAdmin, onEdit, inli
         return;
       }
 
-      // Admins always have access
-      if (isAdmin) {
-        setHasPurchasedGuidebook(true);
-        return;
-      }
-
-      // If no user, lock it
+      // If no user, lock it (even for admins)
       if (!currentUser?.id) {
         setHasPurchasedGuidebook(false);
         return;
@@ -75,7 +70,7 @@ export default function RouteDetailPanel({ route, onClose, isAdmin, onEdit, inli
     };
 
     checkPurchaseStatus();
-  }, [route?.guidebook_id, currentUser?.id, isAdmin]);
+  }, [route?.guidebook_id, currentUser?.id]);
 
   const loadPhotos = async () => {
     setPhotosLoading(true);
@@ -535,7 +530,40 @@ export default function RouteDetailPanel({ route, onClose, isAdmin, onEdit, inli
                         Locked
                       </div>
                       <p className="text-xs text-slate-500">
-                        These collections are only available to users who have purchased the guidebook
+                        Login after purchasing the guide to access multiday schedules and associated gpx
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* GPX Download */}
+              {route.gpx_url && (
+                <div>
+                  <h3 className="text-base font-semibold text-slate-900 mb-2">GPX Download</h3>
+                  {(hasPurchasedGuidebook === true || !route.guidebook_id) ? (
+                    <a
+                      href={route.gpx_url.startsWith('http') ? route.gpx_url : `${API_BASE}${route.gpx_url}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download
+                      className="inline-flex items-center px-3 py-1.5 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors text-xs font-medium"
+                    >
+                      Download GPX
+                      <svg className="ml-1.5 w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                    </a>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="inline-flex items-center px-3 py-1.5 bg-slate-300 text-slate-600 rounded-lg text-xs font-medium cursor-not-allowed">
+                        <svg className="mr-1.5 w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        Locked
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        GPX download is only available to users who have purchased the guidebook
                       </p>
                     </div>
                   )}
@@ -888,6 +916,39 @@ export default function RouteDetailPanel({ route, onClose, isAdmin, onEdit, inli
                     </div>
                     <p className="text-sm text-slate-500">
                       These collections are only available to users who have purchased the guidebook
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* GPX Download */}
+            {route.gpx_url && (
+              <div>
+                <h3 className="text-base font-semibold text-slate-900 mb-2">GPX Download</h3>
+                {(hasPurchasedGuidebook === true || !route.guidebook_id) ? (
+                  <a
+                    href={route.gpx_url.startsWith('http') ? route.gpx_url : `${API_BASE}${route.gpx_url}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download
+                    className="inline-flex items-center px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors text-sm font-medium"
+                  >
+                    Download GPX
+                    <svg className="ml-1.5 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                  </a>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="inline-flex items-center px-4 py-2 bg-slate-300 text-slate-600 rounded-lg text-sm font-medium cursor-not-allowed">
+                      <svg className="mr-1.5 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      Locked - Purchase Guidebook to Unlock
+                    </div>
+                    <p className="text-sm text-slate-500">
+                      GPX download is only available to users who have purchased the guidebook
                     </p>
                   </div>
                 )}
