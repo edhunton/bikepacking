@@ -134,4 +134,20 @@ docker exec -i bikepacking_postgres psql -U postgres -d bikepacking < migrations
 
 **Note:** This migration creates the `book_purchases` table to track book purchases. Komoot collections and Google MyMaps are locked for routes with guidebooks unless the user has purchased the guidebook. Admins always have access.
 
+## Running the Payment Metadata Migration
+
+To add payment tracking fields to book_purchases:
+
+```bash
+# Using psql directly
+psql -h localhost -p 55432 -U postgres -d bikepacking -f migrations/add_payment_metadata_to_book_purchases.sql
+
+# Or using docker exec if using docker-compose
+docker exec -i bikepacking_postgres psql -U postgres -d bikepacking < migrations/add_payment_metadata_to_book_purchases.sql
+```
+
+**Note:** This migration adds payment tracking fields (`payment_id`, `payment_provider`, `payment_amount`, `payment_currency`) to support Square webhook integration and idempotency checks.
+
+
+
 
