@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import os
 from datetime import datetime, timedelta
 from typing import Optional
@@ -10,6 +11,8 @@ from fastapi.security import OAuth2PasswordBearer
 
 from .db import get_connection
 from .models import User, CreateUser, UserInDB, UserRole
+
+logger = logging.getLogger(__name__)
 
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-me")
@@ -182,12 +185,28 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInDB:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
         if email is None:
+            logger.warning(f"JWT token missing 'sub' claim. Token: {token[:50]}...")
             raise credentials_exception
-    except jwt.PyJWTError:
+    except jwt.ExpiredSignatureError:
+        logger.warning("JWT token has expired")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired. Please log in again.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except jwt.InvalidTokenError as e:
+        logger.warning(f"Invalid JWT token: {str(e)}. Token: {token[:50] if token else 'None'}...")
+        raise credentials_exception
+    except jwt.PyJWTError as e:
+        logger.warning(f"JWT decode error: {str(e)}")
         raise credentials_exception
 
     user = get_user_by_email(email=email)
-    if user is None or not user.active:
+    if user is None:
+        logger.warning(f"User not found for email from token: {email}")
+        raise credentials_exception
+    if not user.active:
+        logger.warning(f"User is inactive: {email}")
         raise credentials_exception
     return user
 
