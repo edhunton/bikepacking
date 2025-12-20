@@ -40,5 +40,3 @@ class BookPhoto(BaseModel):
 class CreateBookPhoto(BaseModel):
     book_id: int
     caption: str | None = None
-
-

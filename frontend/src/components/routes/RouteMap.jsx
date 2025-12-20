@@ -344,5 +344,3 @@ export default function RouteMap({ gpxUrl, routeTitle, interactive = false, heig
     </div>
   );
 }
-
-

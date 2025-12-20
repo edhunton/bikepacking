@@ -17,5 +17,3 @@ WHERE first_name IS NULL AND name IS NOT NULL;
 -- Note: For new signups, we'll require both fields
 -- ALTER TABLE users ALTER COLUMN first_name SET NOT NULL;
 -- ALTER TABLE users ALTER COLUMN last_name SET NOT NULL;
-
-

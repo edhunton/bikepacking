@@ -29,5 +29,3 @@ class StravaActivity(BaseModel):
     description: Optional[str] = None
     gear_id: Optional[str] = None
     gear: Optional[dict] = None
-
-

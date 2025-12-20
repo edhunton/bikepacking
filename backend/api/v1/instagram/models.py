@@ -27,5 +27,3 @@ class InstagramUser(BaseModel):
 
 # Update forward reference
 InstagramMedia.model_rebuild()
-
-

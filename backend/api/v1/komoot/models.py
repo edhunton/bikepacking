@@ -31,5 +31,3 @@ class KomootCollection(BaseModel):
     thumbnail_url: Optional[str] = None
     komoot_url: Optional[str] = None
     items: Optional[List[dict]] = None  # Tours, highlights, or routes in the collection
-
-

@@ -6,5 +6,3 @@ CREATE INDEX IF NOT EXISTS idx_routes_live ON routes(live);
 
 -- Update any existing routes to be live by default
 UPDATE routes SET live = TRUE WHERE live IS NULL;
-
-

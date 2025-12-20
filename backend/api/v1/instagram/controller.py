@@ -870,5 +870,3 @@ def _get_carousel_children(media_id: str) -> Optional[List[InstagramMedia]]:
         logger.warning(f"Error fetching carousel children for {media_id}: {str(e)}")
     
     return None
-
-

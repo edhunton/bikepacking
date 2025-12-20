@@ -123,6 +123,3 @@ export default function Login({ onLogin, currentUser }) {
     </div>
   );
 }
-
-
-

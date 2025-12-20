@@ -13,5 +13,3 @@ CREATE TABLE IF NOT EXISTS book_photos (
 
 CREATE INDEX IF NOT EXISTS idx_book_photos_book_id ON book_photos(book_id);
 CREATE INDEX IF NOT EXISTS idx_book_photos_created_at ON book_photos(created_at);
-
-

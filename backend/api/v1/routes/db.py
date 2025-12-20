@@ -19,5 +19,3 @@ def get_connection() -> Generator[psycopg.Connection, None, None]:
         yield conn
     finally:
         conn.close()
-
-
