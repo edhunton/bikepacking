@@ -31,10 +31,109 @@ export default function Books({ books, loading, error, currentUser }) {
   });
   const [photoStatus, setPhotoStatus] = useState({ loading: false, error: "", success: "" });
   const [lightbox, setLightbox] = useState({ open: false, bookId: null, index: 0 });
+  const [paymentLinks, setPaymentLinks] = useState({});
+  const [paymentLinksLoading, setPaymentLinksLoading] = useState(false);
+  const [purchasedBooks, setPurchasedBooks] = useState({}); // Track which books user has purchased
 
   useEffect(() => {
     setLocalBooks(books);
   }, [books]);
+
+  // Pre-generate payment links and check purchase status when page loads (if user is logged in)
+  useEffect(() => {
+    if (currentUser && localBooks.length > 0) {
+      fetchPaymentLinks();
+      fetchPurchaseStatus();
+    }
+  }, [currentUser, localBooks]);
+
+  // Fetch purchase status for all books
+  const fetchPurchaseStatus = async () => {
+    if (!currentUser) return;
+    
+    try {
+      const token = localStorage.getItem("authToken");
+      if (!token) return;
+      
+      // Check purchase status for all books
+      const purchaseChecks = await Promise.all(
+        localBooks.map(async (book) => {
+          try {
+            const response = await fetch(`${API_BASE}/api/v1/books/${book.id}/purchased`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            });
+            if (response.ok) {
+              const data = await response.json();
+              return { bookId: book.id, purchased: data.purchased };
+            }
+          } catch (error) {
+            console.error(`Error checking purchase for book ${book.id}:`, error);
+          }
+          return { bookId: book.id, purchased: false };
+        })
+      );
+      
+      // Build purchased books map
+      const purchasedMap = {};
+      purchaseChecks.forEach(({ bookId, purchased }) => {
+        purchasedMap[bookId] = purchased;
+      });
+      
+      setPurchasedBooks(purchasedMap);
+    } catch (error) {
+      console.error("Error fetching purchase status:", error);
+    }
+  };
+
+  const fetchPaymentLinks = async () => {
+    if (!currentUser) return;
+    
+    setPaymentLinksLoading(true);
+    try {
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        console.error("No auth token found in localStorage - cannot fetch payment links");
+        return;
+      }
+      const bookIds = localBooks.map(book => book.id).join(",");
+      
+      const response = await fetch(`${API_BASE}/api/v1/books/payment-links?book_ids=${bookIds}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPaymentLinks(data.payment_links || {});
+        if (data.errors && Object.keys(data.errors).length > 0) {
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Failed to fetch payment links:", {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        
+        // If unauthorized, token might be expired - clear token
+        if (response.status === 401) {
+          localStorage.removeItem("authToken");
+          
+          // Dispatch a custom event that App.jsx can listen to
+          window.dispatchEvent(new Event("authTokenCleared"));
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching payment links:", error);
+    } finally {
+      setPaymentLinksLoading(false);
+    }
+  };
 
   const fetchPhotos = async (bookId) => {
     setPhotosLoading(true);
@@ -521,6 +620,10 @@ export default function Books({ books, loading, error, currentUser }) {
                 photosLoading={photosLoading && expandedId === book.id}
                 photosError={expandedId === book.id ? photosError : ""}
                 onPhotoClick={(index) => handleOpenLightbox(book.id, index)}
+                currentUser={currentUser}
+                paymentLink={paymentLinks[book.id]}
+                paymentLinksLoading={paymentLinksLoading}
+                hasPurchased={purchasedBooks[book.id] || false}
               />
             </div>
           ))}

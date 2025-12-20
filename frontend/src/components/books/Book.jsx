@@ -1,3 +1,7 @@
+import { useEffect } from "react";
+
+const API_BASE = import.meta.env.VITE_API_BASE ?? "";
+
 export default function Book({
   book,
   onEdit,
@@ -7,14 +11,90 @@ export default function Book({
   photosLoading,
   photosError,
   onPhotoClick,
+  currentUser,
+  paymentLink = null,  // Pre-generated payment link
+  paymentLinksLoading = false,  // Whether links are being loaded
+  hasPurchased = false,  // Whether user has already purchased this book
 }) {
+  // Log payment link payload when it's set for this book
+  useEffect(() => {
+    if (paymentLink) {
+      console.log(`[Book Component] Book ${book.id} (${book.title}) payment link payload:`, {
+        bookId: book.id,
+        bookTitle: book.title,
+        paymentLink: paymentLink,
+        userEmail: currentUser?.email
+      });
+    }
+  }, [paymentLink, book.id, book.title, currentUser?.email]);
   const { title, subtitle, author, published_at, isbn, cover_url, thumbnail, purchase_url, amazon_link } = book;
 
   // Use cover_url, thumbnail, or a placeholder
   const imageUrl = cover_url || thumbnail || "/images/book-placeholder.jpg";
 
-  // Handle buy button click
-  const handleBuyClick = () => {
+  // Handle buy button click - use pre-generated payment link if available
+  const handleBuyClick = async (e) => {
+    e.stopPropagation();
+    
+    // If user is logged in, try pre-generated payment link first
+    if (currentUser) {
+      // Use pre-generated link if available
+      if (paymentLink) {
+        console.log("[Buy Button Click] Using pre-generated payment link:", {
+          bookId: book.id,
+          bookTitle: book.title,
+          paymentLink: paymentLink,
+          userEmail: currentUser?.email
+        });
+        window.open(paymentLink, "_blank");
+        return;
+      }
+      
+      // If links are still loading, wait and try on-demand generation
+      if (paymentLinksLoading) {
+        // Wait a bit for links to load, then try on-demand
+        setTimeout(() => {
+          if (paymentLink) {
+            window.open(paymentLink, "_blank");
+          } else {
+            generatePaymentLinkOnDemand();
+          }
+        }, 500);
+        return;
+      }
+      
+      // Fallback: generate payment link on-demand if pre-generation failed
+      generatePaymentLinkOnDemand();
+      return;
+    }
+    
+    // Generate payment link on-demand (fallback function)
+    async function generatePaymentLinkOnDemand() {
+      try {
+        const token = localStorage.getItem("authToken");
+        const response = await fetch(`${API_BASE}/api/v1/books/${book.id}/payment-link`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const paymentUrl = data.payment_link;
+          console.log("Opening payment link (on-demand):", paymentUrl);
+          window.open(paymentUrl, "_blank");
+        } else {
+          throw new Error(`Failed to create payment link: ${response.status}`);
+        }
+      } catch (error) {
+        console.error("Error creating payment link:", error);
+        alert("Failed to create payment link. Please try again.");
+        // Fall through to static URL or Amazon fallback
+      }
+    }
+    
+    // Fallback to static purchase_url or Amazon (if user not logged in or payment link failed)
     if (purchase_url) {
       window.open(purchase_url, "_blank");
       return;
@@ -89,13 +169,10 @@ export default function Book({
           {/* Buy / Edit Buttons */}
           <div className="flex gap-2 mt-4">
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleBuyClick();
-              }}
+              onClick={handleBuyClick}
               className="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors text-sm font-medium"
             >
-              {purchase_url ? "Buy Now" : "Find Book"}
+              {hasPurchased ? "Buy Again" : (purchase_url || currentUser ? "Buy Now" : "Find Book")}
             </button>
             <button
               onClick={(e) => {
